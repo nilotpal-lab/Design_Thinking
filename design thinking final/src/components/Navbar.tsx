@@ -1,23 +1,26 @@
 import React, { useState } from 'react';
-import { Search, Bell, Menu, X } from 'lucide-react';
+import { Search, Bell, Menu, X, ShieldCheck } from 'lucide-react';
 import { NotificationsPopover } from './NotificationsPopover';
 import { UserProfileMenu } from './UserProfileMenu';
+import { UserSession } from './AuthModal';
 
 interface NavbarProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
-  userRole?: string;
-  setUserRole?: (role: string) => void;
-  userName?: string;
+  currentUser: UserSession | null;
+  onOpenAuth: () => void;
+  onSignOut: () => void;
+  onSwitchUser: (role: 'student' | 'staff_admin' | 'head_admin') => void;
   onOpenSearch?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
   activeTab,
   setActiveTab,
-  userRole = 'Student',
-  setUserRole = () => {},
-  userName = 'Nilotpal',
+  currentUser,
+  onOpenAuth,
+  onSignOut,
+  onSwitchUser,
   onOpenSearch = () => {},
 }) => {
   const [isNotifOpen, setIsNotifOpen] = useState(false);
@@ -34,11 +37,16 @@ export const Navbar: React.FC<NavbarProps> = ({
     { id: 'lostfound', label: 'Lost & Found' },
   ];
 
+  // If the logged in user is Head Admin, include the Admin Console tab
+  if (currentUser && currentUser.role === 'head_admin') {
+    navItems.push({ id: 'admin', label: 'Admin Console' });
+  }
+
   return (
     <header className="sticky top-0 z-40 bg-canvas/95 backdrop-blur-md border-b border-subtle-border">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
         
-        {/* Brand Logo matching reference */}
+        {/* Brand Logo: JAINSPACE */}
         <div 
           onClick={() => { setActiveTab('home'); setIsMobileMenuOpen(false); }}
           className="flex items-center space-x-3 cursor-pointer group select-none"
@@ -66,27 +74,29 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
           <div className="flex items-center space-x-1">
             <span className="font-display text-2xl font-black tracking-wider text-charcoal">
-              CAMPUS
+              JAINSPACE
             </span>
             <span className="w-2 h-2 rounded-full bg-forest ml-1"></span>
           </div>
         </div>
 
         {/* Desktop Navigation Links */}
-        <nav className="hidden lg:flex items-center space-x-7">
+        <nav className="hidden lg:flex items-center space-x-6 xl:space-x-7">
           {navItems.map((item) => {
             const isActive = activeTab === item.id;
+            const isAdminTab = item.id === 'admin';
             return (
               <button
                 key={item.id}
                 onClick={() => setActiveTab(item.id)}
-                className={`relative py-2 text-sm font-medium transition-colors ${
+                className={`relative py-2 text-sm font-medium transition-colors flex items-center gap-1.5 ${
                   isActive
                     ? 'text-charcoal font-semibold'
                     : 'text-charcoal-muted hover:text-charcoal'
                 }`}
               >
-                {item.label}
+                {isAdminTab && <ShieldCheck className="w-3.5 h-3.5 text-purple-700" />}
+                <span>{item.label}</span>
                 {isActive && (
                   <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-charcoal rounded-full" />
                 )}
@@ -95,7 +105,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           })}
         </nav>
 
-        {/* Right Tools (Search + Bell + User Pill + Mobile Toggle) */}
+        {/* Right Tools (Search + Bell + User Pill / Sign In + Mobile Toggle) */}
         <div className="flex items-center space-x-3">
           
           {/* Global Search Button */}
@@ -134,33 +144,50 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* User Sign In / Profile Pill */}
           <div className="relative">
-            <div 
-              onClick={() => {
-                setIsProfileOpen(!isProfileOpen);
-                setIsNotifOpen(false);
-              }}
-              className="flex items-center space-x-2.5 py-1.5 px-3 rounded-full border border-subtle-border bg-card shadow-2xs hover:border-charcoal-muted cursor-pointer transition-all"
-            >
-              <div className="w-7 h-7 rounded-full bg-forest text-white text-xs font-bold flex items-center justify-center shadow-2xs">
-                {userName.charAt(0)}
-              </div>
-              <div className="text-left hidden sm:block">
-                <div className="text-xs font-bold text-charcoal leading-tight">{userName}</div>
-                <div className="text-[10px] text-charcoal-muted leading-none capitalize">{userRole}</div>
-              </div>
-            </div>
+            {currentUser ? (
+              <>
+                <div 
+                  onClick={() => {
+                    setIsProfileOpen(!isProfileOpen);
+                    setIsNotifOpen(false);
+                  }}
+                  className="flex items-center space-x-2.5 py-1 px-3 rounded-full border border-subtle-border bg-card shadow-2xs hover:border-charcoal-muted cursor-pointer transition-all"
+                >
+                  <img
+                    src={currentUser.avatarUrl}
+                    alt={currentUser.name}
+                    className="w-7 h-7 rounded-full object-cover border border-black/10 shrink-0"
+                  />
+                  <div className="text-left hidden sm:block">
+                    <div className="text-xs font-bold text-charcoal leading-tight truncate max-w-[100px]">
+                      {currentUser.name}
+                    </div>
+                    <div className="text-[10px] text-charcoal-muted leading-none capitalize">
+                      {currentUser.role === 'head_admin' ? 'Head Admin' : currentUser.role === 'staff_admin' ? 'Staff Admin' : 'Student'}
+                    </div>
+                  </div>
+                </div>
 
-            <UserProfileMenu
-              isOpen={isProfileOpen}
-              onClose={() => setIsProfileOpen(false)}
-              userName={userName}
-              userRole={userRole}
-              setUserRole={setUserRole}
-              onNavigate={(tab) => {
-                setActiveTab(tab);
-                setIsProfileOpen(false);
-              }}
-            />
+                <UserProfileMenu
+                  isOpen={isProfileOpen}
+                  onClose={() => setIsProfileOpen(false)}
+                  currentUser={currentUser}
+                  onSwitchUser={onSwitchUser}
+                  onSignOut={onSignOut}
+                  onNavigate={(tab) => {
+                    setActiveTab(tab);
+                    setIsProfileOpen(false);
+                  }}
+                />
+              </>
+            ) : (
+              <button
+                onClick={onOpenAuth}
+                className="px-4 py-2 rounded-full bg-[#155137] hover:bg-[#103E2A] text-white text-xs font-bold shadow-2xs transition-all cursor-pointer"
+              >
+                Sign In
+              </button>
+            )}
           </div>
 
           {/* Mobile Hamburger Toggle */}
