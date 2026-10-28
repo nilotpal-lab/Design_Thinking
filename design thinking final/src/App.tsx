@@ -58,23 +58,6 @@ export const App: React.FC = () => {
         {activeTab === 'marketplace' && <MarketplacePage />}
         {activeTab === 'lostfound' && <LostFoundPage />}
       </main>
-
-      {/* Global Footer */}
-      <footer className="border-t border-subtle-border py-8 bg-canvas">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between text-xs text-charcoal-muted space-y-3 sm:space-y-0">
-          <div className="flex items-center space-x-2">
-            <span className="font-display text-lg font-bold text-charcoal tracking-wider">CAMPUS •</span>
-            <span>All rights reserved. Real data from college timetable snapshot (14 Sep 2026).</span>
-          </div>
-          <div className="flex items-center space-x-4">
-            <span className="hover:text-charcoal cursor-pointer">Privacy</span>
-            <span>•</span>
-            <span className="hover:text-charcoal cursor-pointer">Campus Directory</span>
-            <span>•</span>
-            <span className="hover:text-charcoal cursor-pointer">Support</span>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 };
