@@ -2,7 +2,9 @@ import React, { useState } from 'react';
 import { Navbar } from './components/Navbar';
 import { HomePage } from './features/home/HomePage';
 import { SpacesPage } from './features/spaces/SpacesPage';
-import { Calendar, Users, Wrench, ShoppingBag, Key, ArrowRight } from 'lucide-react';
+import { CalendarPage } from './features/calendar/CalendarPage';
+import { FacultyPage } from './features/faculty/FacultyPage';
+import { Wrench, ShoppingBag, Key, ArrowRight } from 'lucide-react';
 
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>('home');
@@ -21,49 +23,8 @@ export const App: React.FC = () => {
       <main className="flex-1">
         {activeTab === 'home' && <HomePage onNavigate={(tab) => setActiveTab(tab)} />}
         {activeTab === 'spaces' && <SpacesPage />}
-
-        {/* Temporary Handlers for upcoming batches */}
-        {activeTab === 'calendar' && (
-          <div className="max-w-4xl mx-auto px-4 py-20 text-center space-y-4">
-            <div className="w-16 h-16 rounded-3xl bg-[#FDF3E7] text-charcoal flex items-center justify-center mx-auto shadow-sm">
-              <Calendar className="w-8 h-8" />
-            </div>
-            <h2 className="font-display text-4xl font-black text-charcoal">
-              CAMPUS EVENTS & CALENDAR
-            </h2>
-            <p className="text-sm text-charcoal-muted max-w-md mx-auto">
-              Prepared for Batch 2: Month, Year, and List view calendar with dedicated Holiday filters and Club/Department event manager.
-            </p>
-            <button
-              onClick={() => setActiveTab('spaces')}
-              className="px-6 py-2.5 bg-forest text-white rounded-xl font-bold text-xs hover:bg-forest-dark transition-colors inline-flex items-center space-x-2"
-            >
-              <span>Explore Spaces</span>
-              <ArrowRight className="w-4 h-4" />
-            </button>
-          </div>
-        )}
-
-        {activeTab === 'faculty' && (
-          <div className="max-w-4xl mx-auto px-4 py-20 text-center space-y-4">
-            <div className="w-16 h-16 rounded-3xl bg-[#EBF3FB] text-charcoal flex items-center justify-center mx-auto shadow-sm">
-              <Users className="w-8 h-8" />
-            </div>
-            <h2 className="font-display text-4xl font-black text-charcoal">
-              CAMPUS FACULTY DIRECTORY
-            </h2>
-            <p className="text-sm text-charcoal-muted max-w-md mx-auto">
-              Prepared for Batch 2: Search teachers by name, department, designation, and room/cabin location.
-            </p>
-            <button
-              onClick={() => setActiveTab('spaces')}
-              className="px-6 py-2.5 bg-forest text-white rounded-xl font-bold text-xs hover:bg-forest-dark transition-colors inline-flex items-center space-x-2"
-            >
-              <span>Explore Spaces</span>
-              <ArrowRight className="w-4 h-4" />
-            </button>
-          </div>
-        )}
+        {activeTab === 'calendar' && <CalendarPage />}
+        {activeTab === 'faculty' && <FacultyPage />}
 
         {activeTab === 'issues' && (
           <div className="max-w-4xl mx-auto px-4 py-20 text-center space-y-4">
