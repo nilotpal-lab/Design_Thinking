@@ -5,7 +5,8 @@ import { SpacesPage } from './features/spaces/SpacesPage';
 import { CalendarPage } from './features/calendar/CalendarPage';
 import { FacultyPage } from './features/faculty/FacultyPage';
 import { IssuesPage } from './features/issues/IssuesPage';
-import { ShoppingBag, Key, ArrowRight } from 'lucide-react';
+import { MarketplacePage } from './features/marketplace/MarketplacePage';
+import { LostFoundPage } from './features/lostfound/LostFoundPage';
 
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>('home');
@@ -27,34 +28,8 @@ export const App: React.FC = () => {
         {activeTab === 'calendar' && <CalendarPage />}
         {activeTab === 'faculty' && <FacultyPage />}
         {activeTab === 'issues' && <IssuesPage />}
-
-        {activeTab === 'marketplace' && (
-          <div className="max-w-4xl mx-auto px-4 py-20 text-center space-y-4">
-            <div className="w-16 h-16 rounded-3xl bg-[#F2EDF9] text-charcoal flex items-center justify-center mx-auto shadow-sm">
-              <ShoppingBag className="w-8 h-8" />
-            </div>
-            <h2 className="font-display text-4xl font-black text-charcoal">
-              CAMPUS MARKETPLACE
-            </h2>
-            <p className="text-sm text-charcoal-muted max-w-md mx-auto">
-              Prepared for Batch 4: Buy, sell, and exchange books, electronics, and essentials with peer contact sharing.
-            </p>
-          </div>
-        )}
-
-        {activeTab === 'lostfound' && (
-          <div className="max-w-4xl mx-auto px-4 py-20 text-center space-y-4">
-            <div className="w-16 h-16 rounded-3xl bg-[#EBF5F0] text-charcoal flex items-center justify-center mx-auto shadow-sm">
-              <Key className="w-8 h-8" />
-            </div>
-            <h2 className="font-display text-4xl font-black text-charcoal">
-              LOST & FOUND RECOVERY
-            </h2>
-            <p className="text-sm text-charcoal-muted max-w-md mx-auto">
-              Prepared for Batch 4: Browse lost and found items with privacy protection and status tracking.
-            </p>
-          </div>
-        )}
+        {activeTab === 'marketplace' && <MarketplacePage />}
+        {activeTab === 'lostfound' && <LostFoundPage />}
       </main>
 
       {/* Global Footer */}

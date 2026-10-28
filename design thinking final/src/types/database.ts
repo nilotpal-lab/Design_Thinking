@@ -77,3 +77,38 @@ export interface CampusIssue {
   created_at: string;
   updated_at: string;
 }
+
+export interface MarketplaceItem {
+  id: string;
+  title: string;
+  description: string;
+  category: 'books' | 'electronics' | 'furniture' | 'clothing' | 'sports' | 'miscellaneous' | string;
+  price: number;
+  condition: 'new' | 'like_new' | 'good' | 'fair';
+  meeting_location: string;
+  status: 'available' | 'reserved' | 'sold';
+  seller_id?: string;
+  seller_name?: string;
+  seller_phone?: string;
+  photo_urls: string[];
+  views_count: number;
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface LostFoundItem {
+  id: string;
+  item_type: 'id_cards' | 'electronics' | 'books' | 'clothing' | 'keys_cards' | 'bags_wallets' | 'other' | string;
+  report_type: 'lost' | 'found';
+  title: string;
+  description: string;
+  location_text: string;
+  incident_date: string;
+  status: 'open' | 'claimed' | 'resolved';
+  reporter_id?: string;
+  reporter_name?: string;
+  contact_phone?: string;
+  photo_urls: string[];
+  created_at: string;
+  updated_at?: string;
+}
