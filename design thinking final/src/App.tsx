@@ -4,7 +4,8 @@ import { HomePage } from './features/home/HomePage';
 import { SpacesPage } from './features/spaces/SpacesPage';
 import { CalendarPage } from './features/calendar/CalendarPage';
 import { FacultyPage } from './features/faculty/FacultyPage';
-import { Wrench, ShoppingBag, Key, ArrowRight } from 'lucide-react';
+import { IssuesPage } from './features/issues/IssuesPage';
+import { ShoppingBag, Key, ArrowRight } from 'lucide-react';
 
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>('home');
@@ -25,20 +26,7 @@ export const App: React.FC = () => {
         {activeTab === 'spaces' && <SpacesPage />}
         {activeTab === 'calendar' && <CalendarPage />}
         {activeTab === 'faculty' && <FacultyPage />}
-
-        {activeTab === 'issues' && (
-          <div className="max-w-4xl mx-auto px-4 py-20 text-center space-y-4">
-            <div className="w-16 h-16 rounded-3xl bg-[#FDEBEB] text-charcoal flex items-center justify-center mx-auto shadow-sm">
-              <Wrench className="w-8 h-8" />
-            </div>
-            <h2 className="font-display text-4xl font-black text-charcoal">
-              CAMPUS ISSUES SYSTEM
-            </h2>
-            <p className="text-sm text-charcoal-muted max-w-md mx-auto">
-              Prepared for Batch 3: Normal user issue reporting drawer + Maintenance Admin management dashboard with timeline.
-            </p>
-          </div>
-        )}
+        {activeTab === 'issues' && <IssuesPage />}
 
         {activeTab === 'marketplace' && (
           <div className="max-w-4xl mx-auto px-4 py-20 text-center space-y-4">
