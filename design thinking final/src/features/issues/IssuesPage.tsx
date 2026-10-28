@@ -69,6 +69,7 @@ export const IssuesPage: React.FC<IssuesPageProps> = ({ currentUser, onRequireAu
   const [newDescription, setNewDescription] = useState<string>('');
   const [submitting, setSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   // Admin Workspace State
   const [adminNavTab, setAdminNavTab] = useState<'all' | 'new' | 'in_progress' | 'resolved' | 'assigned' | 'overdue'>('all');
@@ -129,32 +130,51 @@ export const IssuesPage: React.FC<IssuesPageProps> = ({ currentUser, onRequireAu
     e.preventDefault();
     if (!newTitle.trim() || !newLocation) return;
 
-    setSubmitting(true);
-    const newTicketNum = `#0${240 + issues.length + 1}`;
-    const newIssue = {
-      ticket_number: newTicketNum,
-      title: newTitle.trim(),
-      description: newDescription.trim() || 'Reported via student portal.',
-      category: newCategory,
-      location_text: newLocation,
-      status: 'registered',
-      photo_urls: ['https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=600&q=80'],
-    };
-
-    const { data, error } = await supabase.from('issues').insert([newIssue]).select();
-
-    if (!error && data) {
-      setIssues([data[0] as CampusIssue, ...issues]);
-      setSubmitSuccess(true);
-      setTimeout(() => {
-        setSubmitSuccess(false);
-        setShowReportDrawer(false);
-        setNewTitle('');
-        setNewDescription('');
-        setNewLocation('');
-      }, 1200);
+    if (!currentUser) {
+      if (onRequireAuth) {
+        onRequireAuth();
+      } else {
+        alert('Please sign in to report a campus maintenance issue.');
+      }
+      return;
     }
-    setSubmitting(false);
+
+    try {
+      setSubmitting(true);
+      setSubmitError(null);
+
+      const newTicketNum = `#0${240 + issues.length + 1}`;
+      const newIssue = {
+        ticket_number: newTicketNum,
+        title: newTitle.trim(),
+        description: newDescription.trim() || 'Reported via student portal.',
+        category: newCategory,
+        location_text: newLocation,
+        status: 'registered',
+        photo_urls: ['https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=600&q=80'],
+        reported_by: currentUser.id,
+      };
+
+      const { data, error } = await supabase.from('issues').insert([newIssue]).select();
+
+      if (error) {
+        setSubmitError(error.message || 'Failed to submit issue. Please check your connection and try again.');
+      } else if (data && data.length > 0) {
+        setIssues([data[0] as CampusIssue, ...issues]);
+        setSubmitSuccess(true);
+        setTimeout(() => {
+          setSubmitSuccess(false);
+          setShowReportDrawer(false);
+          setNewTitle('');
+          setNewDescription('');
+          setNewLocation('');
+        }, 1200);
+      }
+    } catch (err: any) {
+      setSubmitError(err?.message || 'An unexpected error occurred while registering the issue.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   // Update Status in Admin Mode
@@ -273,7 +293,17 @@ export const IssuesPage: React.FC<IssuesPageProps> = ({ currentUser, onRequireAu
 
             {/* Big Green CTA Banner matching screenshot */}
             <div
-              onClick={() => setShowReportDrawer(true)}
+              onClick={() => {
+                if (!currentUser) {
+                  if (onRequireAuth) {
+                    onRequireAuth();
+                  } else {
+                    alert('Please sign in to report a campus maintenance issue.');
+                  }
+                  return;
+                }
+                setShowReportDrawer(true);
+              }}
               className="bg-[#155137] hover:bg-[#0E3E2A] text-white rounded-2xl p-5 flex items-center justify-between cursor-pointer shadow-md transition-all group"
             >
               <div className="flex items-center space-x-4">
@@ -422,6 +452,24 @@ export const IssuesPage: React.FC<IssuesPageProps> = ({ currentUser, onRequireAu
                 </div>
               ) : (
                 <form onSubmit={handleReportSubmit} className="space-y-4">
+                  {/* Auth & Error Banners */}
+                  {!currentUser && (
+                    <div className="bg-[#FFF8E1] border border-[#FFE082] rounded-xl p-3 flex items-start gap-2.5 text-xs text-[#8D6E63] animate-in fade-in duration-150">
+                      <AlertCircle className="w-4 h-4 text-[#F57C00] shrink-0 mt-0.5" />
+                      <div>
+                        <span className="font-bold text-[#E65100]">Sign In Required: </span>
+                        <span>You can browse campus issues anonymously, but signing in is required to raise maintenance requests and track tickets.</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {submitError && (
+                    <div className="bg-[#FCE8E6] border border-[#EA4335]/30 rounded-xl p-3 flex items-start gap-2.5 text-xs text-[#C5221F] animate-in fade-in duration-150">
+                      <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                      <span>{submitError}</span>
+                    </div>
+                  )}
+
                   {/* Category 3x3 Grid */}
                   <div className="space-y-1.5">
                     <label className="text-xs font-bold text-charcoal">Category *</label>
@@ -517,9 +565,16 @@ export const IssuesPage: React.FC<IssuesPageProps> = ({ currentUser, onRequireAu
                     <button
                       type="submit"
                       disabled={submitting}
-                      className="flex-1 py-2.5 bg-[#155137] hover:bg-[#0E3E2A] text-white rounded-xl text-xs font-bold transition-colors shadow-sm disabled:opacity-50"
+                      className="flex-1 py-2.5 bg-[#155137] hover:bg-[#0E3E2A] text-white rounded-xl text-xs font-bold transition-colors shadow-sm disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
                     >
-                      {submitting ? 'Submitting...' : 'Submit Issue'}
+                      {submitting && <Clock className="w-3.5 h-3.5 animate-spin" />}
+                      <span>
+                        {!currentUser
+                          ? 'Sign In to Submit Issue'
+                          : submitting
+                            ? 'Registering Issue...'
+                            : 'Submit Issue'}
+                      </span>
                     </button>
                   </div>
                 </form>

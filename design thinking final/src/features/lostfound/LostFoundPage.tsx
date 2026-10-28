@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../../lib/supabase';
 import { LostFoundItem } from '../../types/database';
+import { UserSession } from '../../components/AuthModal';
 import { 
   Search, 
   Plus, 
@@ -18,10 +19,16 @@ import {
   FileText, 
   Eye, 
   Clock, 
-  AlertCircle 
+  AlertCircle,
+  RefreshCw
 } from 'lucide-react';
 
-export const LostFoundPage: React.FC = () => {
+interface LostFoundPageProps {
+  currentUser?: UserSession | null;
+  onRequireAuth?: () => void;
+}
+
+export const LostFoundPage: React.FC<LostFoundPageProps> = ({ currentUser, onRequireAuth }) => {
   const [items, setItems] = useState<LostFoundItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [activeSubnav, setActiveSubnav] = useState<'browse' | 'reports'>('browse');
@@ -52,6 +59,9 @@ export const LostFoundPage: React.FC = () => {
 
   // Report Modal state
   const [isReportModalOpen, setIsReportModalOpen] = useState<boolean>(false);
+  const [isSubmittingReport, setIsSubmittingReport] = useState<boolean>(false);
+  const [reportError, setReportError] = useState<string | null>(null);
+  const [reportSuccess, setReportSuccess] = useState<boolean>(false);
   const [reportType, setReportType] = useState<'lost' | 'found'>('lost');
   const [reportTitle, setReportTitle] = useState<string>('');
   const [reportCategory, setReportCategory] = useState<string>('electronics');
@@ -60,6 +70,21 @@ export const LostFoundPage: React.FC = () => {
   const [reportDescription, setReportDescription] = useState<string>('');
   const [reportPhotoUrl, setReportPhotoUrl] = useState<string>('https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=600&q=80');
   const [hideContact, setHideContact] = useState<boolean>(true);
+
+  // Modal open guard
+  const handleOpenReportModal = () => {
+    if (!currentUser) {
+      if (onRequireAuth) {
+        onRequireAuth();
+      } else {
+        alert('Please sign in to report a lost or found item.');
+      }
+      return;
+    }
+    setReportError(null);
+    setReportSuccess(false);
+    setIsReportModalOpen(true);
+  };
 
   // Fetch items from Supabase
   const fetchLostFoundItems = async () => {
@@ -178,29 +203,49 @@ export const LostFoundPage: React.FC = () => {
     e.preventDefault();
     if (!reportTitle.trim()) return;
 
-    const newRecord = {
-      report_type: reportType,
-      item_type: reportCategory,
-      title: reportTitle.trim(),
-      description: reportDescription.trim() || 'No additional details provided.',
-      location_text: reportLocation,
-      incident_date: reportDate,
-      status: 'open',
-      photo_urls: [reportPhotoUrl],
-    };
+    if (!currentUser) {
+      if (onRequireAuth) onRequireAuth();
+      else alert('Please sign in to report a lost or found item.');
+      return;
+    }
 
-    const { data, error } = await supabase
-      .from('lost_found_items')
-      .insert([newRecord])
-      .select();
+    try {
+      setIsSubmittingReport(true);
+      setReportError(null);
 
-    if (!error && data && data.length > 0) {
-      setItems(prev => [data[0] as LostFoundItem, ...prev]);
-      setIsReportModalOpen(false);
-      setReportTitle('');
-      setReportDescription('');
-    } else {
-      console.error('Error submitting report:', error);
+      const newRecord = {
+        report_type: reportType,
+        item_type: reportCategory,
+        title: reportTitle.trim(),
+        description: reportDescription.trim() || 'No additional details provided.',
+        location_text: reportLocation,
+        incident_date: reportDate,
+        status: 'open',
+        photo_urls: [reportPhotoUrl],
+        reporter_id: currentUser.id,
+      };
+
+      const { data, error } = await supabase
+        .from('lost_found_items')
+        .insert([newRecord])
+        .select();
+
+      if (error) {
+        setReportError(error.message || 'Failed to submit report. Please check your connection and try again.');
+      } else if (data && data.length > 0) {
+        setItems(prev => [data[0] as LostFoundItem, ...prev]);
+        setReportSuccess(true);
+        setTimeout(() => {
+          setIsReportModalOpen(false);
+          setReportSuccess(false);
+          setReportTitle('');
+          setReportDescription('');
+        }, 1200);
+      }
+    } catch (err: any) {
+      setReportError(err?.message || 'An unexpected error occurred while submitting your report.');
+    } finally {
+      setIsSubmittingReport(false);
     }
   };
 
@@ -465,7 +510,7 @@ export const LostFoundPage: React.FC = () => {
             </div>
 
             <button
-              onClick={() => setIsReportModalOpen(true)}
+              onClick={handleOpenReportModal}
               className="inline-flex items-center justify-center gap-2 bg-[#155137] hover:bg-[#103E2A] text-white px-5 py-2.5 rounded-xl font-medium text-sm shadow-sm transition-all shrink-0 cursor-pointer"
             >
               <Plus className="w-4 h-4" />
@@ -626,45 +671,87 @@ export const LostFoundPage: React.FC = () => {
                 </p>
               </div>
 
-              <div className="space-y-3">
-                {items.slice(0, 3).map(item => (
-                  <div
-                    key={item.id}
-                    className="bg-white p-4 rounded-2xl border border-black/5 flex items-center justify-between gap-4 shadow-2xs"
+              {!currentUser ? (
+                <div className="bg-[#FAF8F5] border border-black/10 rounded-2xl p-8 text-center space-y-3">
+                  <div className="w-12 h-12 rounded-full bg-[#EAF4EE] text-[#155137] flex items-center justify-center mx-auto">
+                    <User className="w-6 h-6" />
+                  </div>
+                  <h4 className="font-bold text-base text-charcoal">Sign In Required</h4>
+                  <p className="text-xs text-charcoal-muted max-w-sm mx-auto">
+                    Please sign in with your student or campus account to track your reported lost or found items and manage resolution status.
+                  </p>
+                  <button
+                    onClick={onRequireAuth}
+                    className="px-5 py-2.5 rounded-xl bg-[#155137] hover:bg-[#103E2A] text-white font-semibold text-xs transition-colors shadow-2xs cursor-pointer"
                   >
-                    <div className="flex items-center gap-3">
-                      <img
-                        src={item.photo_urls[0]}
-                        alt={item.title}
-                        className="w-14 h-14 rounded-xl object-cover bg-gray-100 shrink-0"
-                      />
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h4 className="font-bold text-sm text-charcoal">{item.title}</h4>
-                          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded ${
-                            item.report_type === 'lost' ? 'bg-[#FCE8E6] text-[#C5221F]' : 'bg-[#EAF5EE] text-[#137333]'
-                          }`}>
-                            {item.report_type.toUpperCase()}
-                          </span>
+                    Sign In to View Reports
+                  </button>
+                </div>
+              ) : items.filter(it => it.reporter_id === currentUser.id).length === 0 ? (
+                <div className="bg-[#FAF8F5] border border-black/10 rounded-2xl p-8 text-center space-y-3">
+                  <div className="w-12 h-12 rounded-full bg-black/5 text-charcoal-muted flex items-center justify-center mx-auto">
+                    <FileText className="w-6 h-6" />
+                  </div>
+                  <h4 className="font-bold text-base text-charcoal">No Reports Filed Yet</h4>
+                  <p className="text-xs text-charcoal-muted max-w-sm mx-auto">
+                    You haven't filed any lost or found reports under your account yet.
+                  </p>
+                  <button
+                    onClick={handleOpenReportModal}
+                    className="px-5 py-2.5 rounded-xl bg-[#155137] hover:bg-[#103E2A] text-white font-semibold text-xs transition-colors shadow-2xs inline-flex items-center gap-2 cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Report Lost or Found Item</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {items.filter(it => it.reporter_id === currentUser.id).map(item => (
+                    <div
+                      key={item.id}
+                      className="bg-white p-4 rounded-2xl border border-black/5 flex items-center justify-between gap-4 shadow-2xs"
+                    >
+                      <div className="flex items-center gap-3">
+                        <img
+                          src={item.photo_urls[0]}
+                          alt={item.title}
+                          className="w-14 h-14 rounded-xl object-cover bg-gray-100 shrink-0"
+                        />
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h4 className="font-bold text-sm text-charcoal">{item.title}</h4>
+                            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded ${
+                              item.report_type === 'lost' ? 'bg-[#FCE8E6] text-[#C5221F]' : 'bg-[#EAF5EE] text-[#137333]'
+                            }`}>
+                              {item.report_type.toUpperCase()}
+                            </span>
+                          </div>
+                          <p className="text-xs text-charcoal-muted mt-0.5">{item.location_text} • {formatDate(item.incident_date)}</p>
                         </div>
-                        <p className="text-xs text-charcoal-muted mt-0.5">{item.location_text} • {formatDate(item.incident_date)}</p>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <span className={`text-xs font-semibold px-2.5 py-1 rounded-md ${
+                          item.status === 'resolved' ? 'text-gray-600 bg-gray-100' : 'text-[#137333] bg-[#EAF5EE]'
+                        }`}>
+                          {item.status === 'resolved' ? 'Reunited / Resolved' : 'Active Case'}
+                        </span>
+                        {item.status !== 'resolved' && (
+                          <button
+                            onClick={async () => {
+                              await supabase.from('lost_found_items').update({ status: 'resolved' }).eq('id', item.id);
+                              setItems(prev => prev.map(it => it.id === item.id ? { ...it, status: 'resolved' } : it));
+                            }}
+                            className="px-3 py-1.5 rounded-lg border border-black/15 text-xs font-semibold text-charcoal hover:bg-black/5 transition-colors cursor-pointer"
+                          >
+                            Mark Reunited
+                          </button>
+                        )}
                       </div>
                     </div>
-
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-semibold text-[#137333] bg-[#EAF5EE] px-2.5 py-1 rounded-md">
-                        Active Case
-                      </span>
-                      <button
-                        onClick={() => alert(`Marked ${item.title} as reunited!`)}
-                        className="px-3 py-1.5 rounded-lg border border-black/15 text-xs font-semibold text-charcoal hover:bg-black/5 transition-colors"
-                      >
-                        Mark Reunited
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
@@ -765,7 +852,14 @@ export const LostFoundPage: React.FC = () => {
                 </div>
 
                 <button
-                  onClick={() => setClaimSubmitted(true)}
+                  onClick={() => {
+                    if (!currentUser) {
+                      if (onRequireAuth) onRequireAuth();
+                      else alert('Please sign in to claim this item.');
+                      return;
+                    }
+                    setClaimSubmitted(true);
+                  }}
                   disabled={!claimProof.trim()}
                   className="w-full py-3 rounded-xl bg-[#155137] hover:bg-[#103E2A] disabled:opacity-50 text-white font-semibold text-xs shadow-sm transition-all cursor-pointer"
                 >
@@ -825,6 +919,20 @@ export const LostFoundPage: React.FC = () => {
                 I Found an Item
               </button>
             </div>
+
+            {/* Error & Success Feedback Banners */}
+            {reportError && (
+              <div className="bg-[#FCE8E6] border border-[#EA4335]/30 rounded-xl p-3 flex items-start gap-2.5 text-xs text-[#C5221F] animate-in fade-in duration-150">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>{reportError}</span>
+              </div>
+            )}
+            {reportSuccess && (
+              <div className="bg-[#E6F4EA] border border-[#34A853]/30 rounded-xl p-3 flex items-start gap-2.5 text-xs text-[#137333] animate-in fade-in duration-150">
+                <Check className="w-4 h-4 shrink-0 mt-0.5" />
+                <span className="font-semibold">Item reported successfully! Adding to live directory...</span>
+              </div>
+            )}
 
             <form onSubmit={handleCreateReport} className="space-y-4">
               <div>
@@ -945,9 +1053,11 @@ export const LostFoundPage: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-2.5 rounded-xl bg-[#155137] hover:bg-[#103E2A] text-white font-semibold text-xs shadow-sm transition-all cursor-pointer"
+                  disabled={isSubmittingReport}
+                  className="flex-1 py-2.5 rounded-xl bg-[#155137] hover:bg-[#103E2A] text-white font-semibold text-xs shadow-sm transition-all cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
                 >
-                  Submit Report
+                  {isSubmittingReport && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
+                  <span>{isSubmittingReport ? 'Submitting Report...' : 'Submit Report'}</span>
                 </button>
               </div>
             </form>

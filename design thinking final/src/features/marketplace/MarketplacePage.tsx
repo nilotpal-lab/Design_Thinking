@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../../lib/supabase';
 import { MarketplaceItem } from '../../types/database';
+import { UserSession } from '../../components/AuthModal';
 import { 
   Search, 
   Plus, 
@@ -24,14 +25,17 @@ import {
   Check, 
   X, 
   Share2, 
-  Tag
+  Tag,
+  AlertCircle,
+  RefreshCw
 } from 'lucide-react';
 
 interface MarketplacePageProps {
-  // Optional navigation hooks
+  currentUser?: UserSession | null;
+  onRequireAuth?: () => void;
 }
 
-export const MarketplacePage: React.FC<MarketplacePageProps> = () => {
+export const MarketplacePage: React.FC<MarketplacePageProps> = ({ currentUser, onRequireAuth }) => {
   const [items, setItems] = useState<MarketplaceItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [activeSubnav, setActiveSubnav] = useState<'browse' | 'listings' | 'purchases'>('browse');
@@ -60,6 +64,9 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = () => {
 
   // Post new item modal
   const [isPostModalOpen, setIsPostModalOpen] = useState<boolean>(false);
+  const [isSubmittingPost, setIsSubmittingPost] = useState<boolean>(false);
+  const [postError, setPostError] = useState<string | null>(null);
+  const [postSuccess, setPostSuccess] = useState<boolean>(false);
   const [newTitle, setNewTitle] = useState<string>('');
   const [newCategory, setNewCategory] = useState<string>('books');
   const [newPrice, setNewPrice] = useState<string>('');
@@ -67,6 +74,21 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = () => {
   const [newLocation, setNewLocation] = useState<string>('Academic Block');
   const [newDescription, setNewDescription] = useState<string>('');
   const [newPhotoUrl, setNewPhotoUrl] = useState<string>('https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=600&q=80');
+
+  // Open modal or require authentication
+  const handleOpenPostModal = () => {
+    if (!currentUser) {
+      if (onRequireAuth) {
+        onRequireAuth();
+      } else {
+        alert('Please sign in to post an item on the marketplace.');
+      }
+      return;
+    }
+    setPostError(null);
+    setPostSuccess(false);
+    setIsPostModalOpen(true);
+  };
 
   // Listings filter tabs
   const [listingsTab, setListingsTab] = useState<'all' | 'available' | 'reserved' | 'sold'>('all');
@@ -138,6 +160,12 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = () => {
     });
   }, [items, selectedCategory, selectedStatuses, minPrice, maxPrice, searchQuery, sortBy]);
 
+  // User's own listings
+  const myListings = useMemo(() => {
+    if (!currentUser) return [];
+    return items.filter(i => i.seller_id === currentUser.id);
+  }, [items, currentUser]);
+
   // Wishlist toggle
   const toggleWishlist = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -198,31 +226,50 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = () => {
     e.preventDefault();
     if (!newTitle.trim() || !newPrice) return;
 
-    const newItem = {
-      title: newTitle.trim(),
-      category: newCategory,
-      price: parseFloat(newPrice),
-      condition: newCondition,
-      meeting_location: newLocation,
-      description: newDescription.trim() || 'No description provided.',
-      photo_urls: [newPhotoUrl],
-      status: 'available',
-      views_count: 1,
-    };
+    if (!currentUser) {
+      if (onRequireAuth) onRequireAuth();
+      return;
+    }
 
-    const { data, error } = await supabase
-      .from('marketplace_items')
-      .insert([newItem])
-      .select();
+    try {
+      setIsSubmittingPost(true);
+      setPostError(null);
 
-    if (!error && data && data.length > 0) {
-      setItems(prev => [data[0] as MarketplaceItem, ...prev]);
-      setIsPostModalOpen(false);
-      setNewTitle('');
-      setNewPrice('');
-      setNewDescription('');
-    } else {
-      console.error('Error creating listing:', error);
+      const newItem = {
+        title: newTitle.trim(),
+        category: newCategory,
+        price: parseFloat(newPrice),
+        condition: newCondition,
+        meeting_location: newLocation,
+        description: newDescription.trim() || 'No description provided.',
+        photo_urls: [newPhotoUrl],
+        status: 'available',
+        views_count: 1,
+        seller_id: currentUser.id,
+      };
+
+      const { data, error } = await supabase
+        .from('marketplace_items')
+        .insert([newItem])
+        .select();
+
+      if (error) {
+        setPostError(error.message || 'Failed to list item on marketplace.');
+      } else if (data && data.length > 0) {
+        setItems(prev => [data[0] as MarketplaceItem, ...prev]);
+        setPostSuccess(true);
+        setTimeout(() => {
+          setIsPostModalOpen(false);
+          setPostSuccess(false);
+          setNewTitle('');
+          setNewPrice('');
+          setNewDescription('');
+        }, 1200);
+      }
+    } catch (err: any) {
+      setPostError(err.message || 'Network error while publishing listing.');
+    } finally {
+      setIsSubmittingPost(false);
     }
   };
 
@@ -463,7 +510,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = () => {
                 </div>
 
                 <button
-                  onClick={() => setIsPostModalOpen(true)}
+                  onClick={handleOpenPostModal}
                   className="inline-flex items-center justify-center gap-2 bg-[#155137] hover:bg-[#103E2A] text-white px-5 py-2.5 rounded-xl font-medium text-sm shadow-sm transition-all shrink-0 cursor-pointer"
                 >
                   <Plus className="w-4 h-4" />
@@ -785,7 +832,14 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = () => {
                       </div>
                     ) : (
                       <button
-                        onClick={() => setShareContactModal(true)}
+                        onClick={() => {
+                          if (!currentUser) {
+                            if (onRequireAuth) onRequireAuth();
+                            else alert('Please sign in to contact the seller.');
+                            return;
+                          }
+                          setShareContactModal(true);
+                        }}
                         className="w-full flex items-center justify-center gap-2 bg-[#155137] hover:bg-[#103E2A] text-white py-3 rounded-xl font-medium text-sm transition-all shadow-sm cursor-pointer"
                       >
                         <Phone className="w-4 h-4" />
@@ -819,7 +873,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = () => {
                 </div>
 
                 <button
-                  onClick={() => setIsPostModalOpen(true)}
+                  onClick={handleOpenPostModal}
                   className="inline-flex items-center justify-center gap-2 bg-[#155137] hover:bg-[#103E2A] text-white px-5 py-2.5 rounded-xl font-medium text-sm shadow-sm transition-all shrink-0 cursor-pointer"
                 >
                   <Plus className="w-4 h-4" />
@@ -827,114 +881,151 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = () => {
                 </button>
               </div>
 
-              {/* Status Tab Pills */}
-              <div className="flex items-center gap-2">
-                {[
-                  { id: 'all', label: 'All', count: items.length },
-                  { id: 'available', label: 'Available', count: items.filter(i => i.status === 'available').length },
-                  { id: 'reserved', label: 'Reserved', count: items.filter(i => i.status === 'reserved').length },
-                  { id: 'sold', label: 'Sold', count: items.filter(i => i.status === 'sold').length },
-                ].map(tab => (
+              {!currentUser ? (
+                <div className="bg-[#FAF8F5] border border-black/10 rounded-2xl p-8 text-center space-y-3">
+                  <div className="w-12 h-12 rounded-full bg-[#EAF4EE] text-[#155137] flex items-center justify-center mx-auto">
+                    <ShoppingBag className="w-6 h-6" />
+                  </div>
+                  <h4 className="font-bold text-base text-charcoal">Sign In Required</h4>
+                  <p className="text-xs text-charcoal-muted max-w-sm mx-auto">
+                    Please sign in with your student or campus account to view and manage your posted marketplace listings, update prices, or mark items as sold.
+                  </p>
                   <button
-                    key={tab.id}
-                    onClick={() => setListingsTab(tab.id as any)}
-                    className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-semibold transition-colors ${
-                      listingsTab === tab.id
-                        ? 'bg-[#155137] text-white shadow-2xs'
-                        : 'bg-black/5 hover:bg-black/10 text-charcoal'
-                    }`}
+                    onClick={onRequireAuth}
+                    className="px-5 py-2.5 rounded-xl bg-[#155137] hover:bg-[#103E2A] text-white font-semibold text-xs transition-colors shadow-2xs cursor-pointer"
                   >
-                    <span>{tab.label}</span>
-                    <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${listingsTab === tab.id ? 'bg-white/20' : 'bg-black/5'}`}>
-                      {tab.count}
-                    </span>
+                    Sign In to View Listings
                   </button>
-                ))}
-              </div>
-
-              {/* Listings Rows */}
-              <div className="space-y-4">
-                {items
-                  .filter(i => listingsTab === 'all' || i.status === listingsTab)
-                  .map(item => {
-                    const photo = item.photo_urls && item.photo_urls[0] ? item.photo_urls[0] : '';
-                    return (
-                      <div
-                        key={item.id}
-                        className="bg-white p-4 sm:p-5 rounded-2xl border border-black/5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-2xs hover:shadow-xs transition-shadow"
+                </div>
+              ) : myListings.length === 0 ? (
+                <div className="bg-[#FAF8F5] border border-black/10 rounded-2xl p-8 text-center space-y-3">
+                  <div className="w-12 h-12 rounded-full bg-black/5 text-charcoal-muted flex items-center justify-center mx-auto">
+                    <Tag className="w-6 h-6" />
+                  </div>
+                  <h4 className="font-bold text-base text-charcoal">No Listings Posted Yet</h4>
+                  <p className="text-xs text-charcoal-muted max-w-sm mx-auto">
+                    You haven't listed any items for sale under your student account yet.
+                  </p>
+                  <button
+                    onClick={handleOpenPostModal}
+                    className="px-5 py-2.5 rounded-xl bg-[#155137] hover:bg-[#103E2A] text-white font-semibold text-xs transition-colors shadow-2xs inline-flex items-center gap-2 cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Post an Item</span>
+                  </button>
+                </div>
+              ) : (
+                <>
+                  {/* Status Tab Pills */}
+                  <div className="flex items-center gap-2">
+                    {[
+                      { id: 'all', label: 'All', count: myListings.length },
+                      { id: 'available', label: 'Available', count: myListings.filter(i => i.status === 'available').length },
+                      { id: 'reserved', label: 'Reserved', count: myListings.filter(i => i.status === 'reserved').length },
+                      { id: 'sold', label: 'Sold', count: myListings.filter(i => i.status === 'sold').length },
+                    ].map(tab => (
+                      <button
+                        key={tab.id}
+                        onClick={() => setListingsTab(tab.id as any)}
+                        className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-semibold transition-colors ${
+                          listingsTab === tab.id
+                            ? 'bg-[#155137] text-white shadow-2xs'
+                            : 'bg-black/5 hover:bg-black/10 text-charcoal'
+                        }`}
                       >
-                        <div className="flex items-center gap-4">
-                          <img
-                            src={photo}
-                            alt={item.title}
-                            className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl object-cover bg-gray-100 shrink-0"
-                          />
-                          <div className="space-y-1">
-                            <h4 className="font-bold text-sm sm:text-base text-charcoal">
-                              {item.title}
-                            </h4>
-                            <div className="flex items-center gap-2">
-                              <span className="font-black text-sm text-[#155137]">
-                                {formatPrice(item.price)}
-                              </span>
-                              {item.status === 'available' && (
-                                <span className="bg-[#E6F4EA] text-[#137333] text-[10px] font-semibold px-2 py-0.5 rounded-md">
-                                  Available
-                                </span>
-                              )}
-                              {item.status === 'reserved' && (
-                                <span className="bg-[#E8F0FE] text-[#1967D2] text-[10px] font-semibold px-2 py-0.5 rounded-md">
-                                  Reserved
-                                </span>
-                              )}
-                              {item.status === 'sold' && (
-                                <span className="bg-[#FCE8E6] text-[#C5221F] text-[10px] font-semibold px-2 py-0.5 rounded-md">
-                                  Sold
-                                </span>
-                              )}
+                        <span>{tab.label}</span>
+                        <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${listingsTab === tab.id ? 'bg-white/20' : 'bg-black/5'}`}>
+                          {tab.count}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Listings Rows */}
+                  <div className="space-y-4">
+                    {myListings
+                      .filter(i => listingsTab === 'all' || i.status === listingsTab)
+                      .map(item => {
+                        const photo = item.photo_urls && item.photo_urls[0] ? item.photo_urls[0] : '';
+                        return (
+                          <div
+                            key={item.id}
+                            className="bg-white p-4 sm:p-5 rounded-2xl border border-black/5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-2xs hover:shadow-xs transition-shadow"
+                          >
+                            <div className="flex items-center gap-4">
+                              <img
+                                src={photo}
+                                alt={item.title}
+                                className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl object-cover bg-gray-100 shrink-0"
+                              />
+                              <div className="space-y-1">
+                                <h4 className="font-bold text-sm sm:text-base text-charcoal">
+                                  {item.title}
+                                </h4>
+                                <div className="flex items-center gap-2">
+                                  <span className="font-black text-sm text-[#155137]">
+                                    {formatPrice(item.price)}
+                                  </span>
+                                  {item.status === 'available' && (
+                                    <span className="bg-[#E6F4EA] text-[#137333] text-[10px] font-semibold px-2 py-0.5 rounded-md">
+                                      Available
+                                    </span>
+                                  )}
+                                  {item.status === 'reserved' && (
+                                    <span className="bg-[#E8F0FE] text-[#1967D2] text-[10px] font-semibold px-2 py-0.5 rounded-md">
+                                      Reserved
+                                    </span>
+                                  )}
+                                  {item.status === 'sold' && (
+                                    <span className="bg-[#FCE8E6] text-[#C5221F] text-[10px] font-semibold px-2 py-0.5 rounded-md">
+                                      Sold
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-3 text-xs text-charcoal-muted pt-1">
+                                  <span className="flex items-center gap-1">
+                                    <Eye className="w-3.5 h-3.5" />
+                                    {item.views_count || 34}
+                                  </span>
+                                  <span className="flex items-center gap-1">
+                                    <MapPin className="w-3.5 h-3.5" />
+                                    {item.meeting_location}
+                                  </span>
+                                  <span>Posted {formatRelativeTime(item.created_at)}</span>
+                                </div>
+                              </div>
                             </div>
-                            <div className="flex items-center gap-3 text-xs text-charcoal-muted pt-1">
-                              <span className="flex items-center gap-1">
-                                <Eye className="w-3.5 h-3.5" />
-                                {item.views_count || 34}
-                              </span>
-                              <span className="flex items-center gap-1">
-                                <MapPin className="w-3.5 h-3.5" />
-                                {item.meeting_location}
-                              </span>
-                              <span>Posted {formatRelativeTime(item.created_at)}</span>
+
+                            {/* Action buttons matching screenshot */}
+                            <div className="flex items-center gap-2 self-end sm:self-center">
+                              <button
+                                onClick={() => { setSelectedItem(item); setActiveSubnav('browse'); }}
+                                className="px-3.5 py-1.5 rounded-lg border border-black/15 text-xs font-semibold text-charcoal hover:bg-black/5 transition-colors cursor-pointer"
+                              >
+                                Edit
+                              </button>
+                              {item.status !== 'sold' ? (
+                                <button
+                                  onClick={() => handleMarkAsSold(item.id)}
+                                  className="px-3.5 py-1.5 rounded-lg border border-red-200 text-xs font-semibold text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+                                >
+                                  Mark as Sold
+                                </button>
+                              ) : (
+                                <button
+                                  disabled
+                                  className="px-3.5 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-400 cursor-not-allowed"
+                                >
+                                  Mark as Sold
+                                </button>
+                              )}
                             </div>
                           </div>
-                        </div>
-
-                        {/* Action buttons matching screenshot */}
-                        <div className="flex items-center gap-2 self-end sm:self-center">
-                          <button
-                            onClick={() => { setSelectedItem(item); setActiveSubnav('browse'); }}
-                            className="px-3.5 py-1.5 rounded-lg border border-black/15 text-xs font-semibold text-charcoal hover:bg-black/5 transition-colors"
-                          >
-                            Edit
-                          </button>
-                          {item.status !== 'sold' ? (
-                            <button
-                              onClick={() => handleMarkAsSold(item.id)}
-                              className="px-3.5 py-1.5 rounded-lg border border-red-200 text-xs font-semibold text-red-600 hover:bg-red-50 transition-colors"
-                            >
-                              Mark as Sold
-                            </button>
-                          ) : (
-                            <button
-                              disabled
-                              className="px-3.5 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-400 cursor-not-allowed"
-                            >
-                              Mark as Sold
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-              </div>
+                        );
+                      })}
+                  </div>
+                </>
+              )}
             </div>
           )}
 
@@ -1117,6 +1208,20 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = () => {
             </div>
 
             <form onSubmit={handleCreateListing} className="space-y-4">
+              {postError && (
+                <div className="bg-red-50 border border-red-200 text-red-700 px-3.5 py-2.5 rounded-xl text-xs flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-red-600" />
+                  <span>{postError}</span>
+                </div>
+              )}
+
+              {postSuccess && (
+                <div className="bg-[#E6F4EA] border border-[#34A853]/30 text-[#137333] px-3.5 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-2">
+                  <Check className="w-4 h-4 shrink-0 text-[#137333]" />
+                  <span>✓ Listing successfully published to JainSpace Marketplace!</span>
+                </div>
+              )}
+
               <div>
                 <label className="block text-xs font-semibold text-charcoal mb-1">
                   Item Title *
@@ -1238,9 +1343,11 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = () => {
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-2.5 rounded-xl bg-[#155137] hover:bg-[#103E2A] text-white font-semibold text-xs shadow-sm transition-all cursor-pointer"
+                  disabled={isSubmittingPost || postSuccess}
+                  className="flex-1 py-2.5 rounded-xl bg-[#155137] hover:bg-[#103E2A] disabled:opacity-50 text-white font-semibold text-xs shadow-sm transition-all cursor-pointer flex items-center justify-center gap-2"
                 >
-                  Publish Listing
+                  {isSubmittingPost && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
+                  <span>{isSubmittingPost ? 'Publishing...' : postSuccess ? 'Listing Published!' : 'Publish Listing'}</span>
                 </button>
               </div>
             </form>

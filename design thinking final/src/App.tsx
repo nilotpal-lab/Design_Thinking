@@ -88,8 +88,18 @@ export const App: React.FC = () => {
             onRequireAuth={() => setIsAuthOpen(true)} 
           />
         )}
-        {activeTab === 'marketplace' && <MarketplacePage />}
-        {activeTab === 'lostfound' && <LostFoundPage />}
+        {activeTab === 'marketplace' && (
+          <MarketplacePage 
+            currentUser={currentUser} 
+            onRequireAuth={() => setIsAuthOpen(true)} 
+          />
+        )}
+        {activeTab === 'lostfound' && (
+          <LostFoundPage 
+            currentUser={currentUser} 
+            onRequireAuth={() => setIsAuthOpen(true)} 
+          />
+        )}
         {activeTab === 'admin' && (
           currentUser?.role === 'head_admin' ? (
             <HeadAdminPage />
