@@ -10,7 +10,6 @@ interface NavbarProps {
   currentUser: UserSession | null;
   onOpenAuth: () => void;
   onSignOut: () => void;
-  onSwitchUser: (role: 'student' | 'staff_admin' | 'head_admin') => void;
   onOpenSearch?: () => void;
 }
 
@@ -20,7 +19,6 @@ export const Navbar: React.FC<NavbarProps> = ({
   currentUser,
   onOpenAuth,
   onSignOut,
-  onSwitchUser,
   onOpenSearch = () => {},
 }) => {
   const [isNotifOpen, setIsNotifOpen] = useState(false);
@@ -172,7 +170,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                   isOpen={isProfileOpen}
                   onClose={() => setIsProfileOpen(false)}
                   currentUser={currentUser}
-                  onSwitchUser={onSwitchUser}
                   onSignOut={onSignOut}
                   onNavigate={(tab) => {
                     setActiveTab(tab);

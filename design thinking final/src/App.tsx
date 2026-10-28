@@ -10,6 +10,7 @@ import { LostFoundPage } from './features/lostfound/LostFoundPage';
 import { HeadAdminPage } from './features/admin/HeadAdminPage';
 import { CommandPalette } from './components/CommandPalette';
 import { AuthModal, UserSession } from './components/AuthModal';
+import { AccessDenied } from './components/AccessDenied';
 
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>('home');
@@ -38,40 +39,6 @@ export const App: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Quick switch role between demo accounts
-  const handleSwitchRole = (targetRole: 'student' | 'staff_admin' | 'head_admin') => {
-    if (targetRole === 'student') {
-      setCurrentUser({
-        id: 'a0000000-0000-0000-0000-000000000006',
-        name: 'Nilotpal',
-        email: 'nilotpal.student@jainuniversity.ac.in',
-        role: 'student',
-        department: 'B.Tech CSE - 3rd Sem',
-        avatarUrl: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=200&q=80',
-      });
-    } else if (targetRole === 'staff_admin') {
-      setCurrentUser({
-        id: 'a0000000-0000-0000-0000-000000000002',
-        name: 'Ramesh Kumar',
-        email: 'ramesh.facilities@jainuniversity.ac.in',
-        role: 'staff_admin',
-        department: 'Campus Estate & Maintenance',
-        avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80',
-      });
-      setActiveTab('issues'); // Direct to maintenance operations
-    } else if (targetRole === 'head_admin') {
-      setCurrentUser({
-        id: 'a0000000-0000-0000-0000-000000000001',
-        name: 'Dr. Arvind Mehra',
-        email: 'arvind.dean@jainuniversity.ac.in',
-        role: 'head_admin',
-        department: 'Office of the Dean & Academic Affairs',
-        avatarUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=200&q=80',
-      });
-      setActiveTab('admin'); // Direct to user management dashboard
-    }
-  };
-
   return (
     <div className="min-h-screen bg-canvas flex flex-col font-sans selection:bg-forest/15 selection:text-forest">
       {/* Top Fixed Header Navbar */}
@@ -84,7 +51,6 @@ export const App: React.FC = () => {
           setCurrentUser(null);
           setActiveTab('home');
         }}
-        onSwitchUser={handleSwitchRole}
         onOpenSearch={() => setIsSearchOpen(true)}
       />
 
@@ -96,6 +62,7 @@ export const App: React.FC = () => {
           setCurrentUser(user);
           if (user.role === 'head_admin') setActiveTab('admin');
           else if (user.role === 'staff_admin') setActiveTab('issues');
+          else setActiveTab('home');
         }}
       />
 
@@ -115,10 +82,26 @@ export const App: React.FC = () => {
         {activeTab === 'spaces' && <SpacesPage />}
         {activeTab === 'calendar' && <CalendarPage />}
         {activeTab === 'faculty' && <FacultyPage />}
-        {activeTab === 'issues' && <IssuesPage />}
+        {activeTab === 'issues' && (
+          <IssuesPage 
+            currentUser={currentUser} 
+            onRequireAuth={() => setIsAuthOpen(true)} 
+          />
+        )}
         {activeTab === 'marketplace' && <MarketplacePage />}
         {activeTab === 'lostfound' && <LostFoundPage />}
-        {activeTab === 'admin' && <HeadAdminPage />}
+        {activeTab === 'admin' && (
+          currentUser?.role === 'head_admin' ? (
+            <HeadAdminPage />
+          ) : (
+            <AccessDenied 
+              title="Head Admin Clearance Required"
+              message="You do not have administrative privileges to access the User Directory and Governance Console. Please sign in with an executive Head Admin account."
+              onGoHome={() => setActiveTab('home')}
+              onSignIn={() => setIsAuthOpen(true)}
+            />
+          )
+        )}
       </main>
     </div>
   );

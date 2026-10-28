@@ -29,10 +29,29 @@ import {
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { CampusIssue } from '../../types/database';
+import { UserSession } from '../../components/AuthModal';
 
-export const IssuesPage: React.FC = () => {
-  // Mode switcher: User reporting vs Maintenance Admin workspace
-  const [viewMode, setViewMode] = useState<'user' | 'admin'>('user');
+interface IssuesPageProps {
+  currentUser?: UserSession | null;
+  onRequireAuth?: () => void;
+}
+
+export const IssuesPage: React.FC<IssuesPageProps> = ({ currentUser, onRequireAuth }) => {
+  const isAdmin = currentUser?.role === 'staff_admin' || currentUser?.role === 'head_admin';
+
+  // Mode switcher: Default to 'admin' for staff/head admins, strictly 'user' for students
+  const [viewMode, setViewMode] = useState<'user' | 'admin'>(() => {
+    return isAdmin ? 'admin' : 'user';
+  });
+
+  // Keep viewMode synced with user role
+  useEffect(() => {
+    if (isAdmin) {
+      setViewMode('admin');
+    } else {
+      setViewMode('user');
+    }
+  }, [isAdmin]);
 
   // Issues data from Supabase
   const [issues, setIssues] = useState<CampusIssue[]>([]);
@@ -188,38 +207,40 @@ export const IssuesPage: React.FC = () => {
 
   return (
     <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-      {/* Top Bar Switcher between Normal User & Maintenance Admin */}
-      <div className="flex items-center justify-between border-b border-subtle-border pb-3">
-        <div className="flex items-center space-x-2">
-          <span className="w-2 h-2 rounded-full bg-[#155137]"></span>
-          <span className="text-xs font-bold uppercase tracking-wider text-charcoal">
-            WORKSPACE VIEW:
-          </span>
-        </div>
+      {/* Top Bar Switcher: Strictly ONLY visible to authorized Maintenance & Head Admins */}
+      {isAdmin && (
+        <div className="flex items-center justify-between border-b border-subtle-border pb-3 animate-in fade-in duration-150">
+          <div className="flex items-center space-x-2">
+            <span className="w-2 h-2 rounded-full bg-[#155137]"></span>
+            <span className="text-xs font-bold uppercase tracking-wider text-charcoal">
+              MAINTENANCE MANAGEMENT ({currentUser?.role === 'head_admin' ? 'Head Admin Mode' : 'Staff Admin Mode'})
+            </span>
+          </div>
 
-        <div className="flex items-center bg-card border border-subtle-border rounded-xl p-1 shadow-2xs">
-          <button
-            onClick={() => setViewMode('user')}
-            className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
-              viewMode === 'user'
-                ? 'bg-[#155137] text-white shadow-sm'
-                : 'text-charcoal-muted hover:text-charcoal'
-            }`}
-          >
-            Normal User (Report Issue)
-          </button>
-          <button
-            onClick={() => setViewMode('admin')}
-            className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
-              viewMode === 'admin'
-                ? 'bg-[#155137] text-white shadow-sm'
-                : 'text-charcoal-muted hover:text-charcoal'
-            }`}
-          >
-            Maintenance Admin
-          </button>
+          <div className="flex items-center bg-card border border-subtle-border rounded-xl p-1 shadow-2xs">
+            <button
+              onClick={() => setViewMode('admin')}
+              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                viewMode === 'admin'
+                  ? 'bg-[#155137] text-white shadow-sm'
+                  : 'text-charcoal-muted hover:text-charcoal'
+              }`}
+            >
+              Operations Dashboard
+            </button>
+            <button
+              onClick={() => setViewMode('user')}
+              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                viewMode === 'user'
+                  ? 'bg-[#155137] text-white shadow-sm'
+                  : 'text-charcoal-muted hover:text-charcoal'
+              }`}
+            >
+              Report View Preview
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* ========================================================
           MODE 1: NORMAL USER (5) Issues - Normal User.jpeg)

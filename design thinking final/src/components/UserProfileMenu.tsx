@@ -1,12 +1,11 @@
 import React from 'react';
-import { User, Shield, Wrench, ShieldCheck, LogOut, X, GraduationCap } from 'lucide-react';
+import { Shield, Wrench, ShieldCheck, LogOut, X, GraduationCap, CheckCircle2 } from 'lucide-react';
 import { UserSession } from './AuthModal';
 
 interface UserProfileMenuProps {
   isOpen: boolean;
   onClose: () => void;
   currentUser: UserSession | null;
-  onSwitchUser: (role: 'student' | 'staff_admin' | 'head_admin') => void;
   onSignOut: () => void;
   onNavigate: (tab: string) => void;
 }
@@ -15,7 +14,6 @@ export const UserProfileMenu: React.FC<UserProfileMenuProps> = ({
   isOpen,
   onClose,
   currentUser,
-  onSwitchUser,
   onSignOut,
   onNavigate,
 }) => {
@@ -34,60 +32,51 @@ export const UserProfileMenu: React.FC<UserProfileMenuProps> = ({
           />
           <div className="min-w-0">
             <h4 className="font-bold text-sm text-charcoal truncate">{currentUser.name}</h4>
-            <span className="text-[11px] text-charcoal-muted truncate block">{currentUser.email}</span>
+            <span className="text-[11px] text-charcoal-muted truncate block font-mono">{currentUser.email}</span>
             <span className="text-[10px] text-forest font-semibold truncate block mt-0.5">{currentUser.department}</span>
           </div>
         </div>
         <button
           onClick={onClose}
-          className="p-1 rounded-full hover:bg-black/5 text-charcoal-muted shrink-0"
+          className="p-1 rounded-full hover:bg-black/5 text-charcoal-muted shrink-0 cursor-pointer"
         >
           <X className="w-4 h-4" />
         </button>
       </div>
 
-      {/* Role Switcher Grid */}
-      <div className="p-4 space-y-2.5">
+      {/* Verified Role Clearance Card */}
+      <div className="p-4 space-y-2">
         <span className="text-[10px] font-bold uppercase tracking-wider text-charcoal-muted block">
-          Switch Testing Perspective
+          Verified Access Clearance
         </span>
 
-        <div className="grid grid-cols-3 gap-1.5 bg-[#FAF8F5] p-1.5 rounded-2xl border border-black/5">
-          <button
-            onClick={() => onSwitchUser('student')}
-            className={`py-2 px-1 rounded-xl text-[11px] font-bold flex flex-col items-center justify-center gap-1 transition-colors ${
-              currentUser.role === 'student'
-                ? 'bg-white text-[#155137] shadow-2xs border border-black/5'
-                : 'text-charcoal-muted hover:text-charcoal'
-            }`}
-          >
-            <GraduationCap className="w-3.5 h-3.5" />
-            <span>Student</span>
-          </button>
-
-          <button
-            onClick={() => onSwitchUser('staff_admin')}
-            className={`py-2 px-1 rounded-xl text-[11px] font-bold flex flex-col items-center justify-center gap-1 transition-colors ${
-              currentUser.role === 'staff_admin'
-                ? 'bg-[#155137] text-white shadow-2xs'
-                : 'text-charcoal-muted hover:text-charcoal'
-            }`}
-          >
-            <Wrench className="w-3.5 h-3.5" />
-            <span>Staff Admin</span>
-          </button>
-
-          <button
-            onClick={() => onSwitchUser('head_admin')}
-            className={`py-2 px-1 rounded-xl text-[11px] font-bold flex flex-col items-center justify-center gap-1 transition-colors ${
-              currentUser.role === 'head_admin'
-                ? 'bg-purple-700 text-white shadow-2xs'
-                : 'text-charcoal-muted hover:text-charcoal'
-            }`}
-          >
-            <ShieldCheck className="w-3.5 h-3.5" />
-            <span>Head Admin</span>
-          </button>
+        <div className="bg-[#FAF8F5] p-3 rounded-2xl border border-black/5 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            {currentUser.role === 'student' && (
+              <div className="w-8 h-8 rounded-xl bg-[#EAF5EE] text-[#137333] flex items-center justify-center">
+                <GraduationCap className="w-4 h-4" />
+              </div>
+            )}
+            {currentUser.role === 'staff_admin' && (
+              <div className="w-8 h-8 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center">
+                <Wrench className="w-4 h-4" />
+              </div>
+            )}
+            {currentUser.role === 'head_admin' && (
+              <div className="w-8 h-8 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center">
+                <ShieldCheck className="w-4 h-4" />
+              </div>
+            )}
+            <div>
+              <div className="font-bold text-xs text-charcoal capitalize">
+                {currentUser.role === 'head_admin' ? 'Head Administrator' : currentUser.role === 'staff_admin' ? 'Staff Maintenance Admin' : 'Enrolled Student'}
+              </div>
+              <div className="text-[10px] text-charcoal-muted">
+                {currentUser.role === 'head_admin' ? 'Executive Governance Access' : currentUser.role === 'staff_admin' ? 'Facilities & Work Order Access' : 'Standard Student Privileges'}
+              </div>
+            </div>
+          </div>
+          <CheckCircle2 className="w-4 h-4 text-[#137333] shrink-0" />
         </div>
       </div>
 
@@ -116,15 +105,17 @@ export const UserProfileMenu: React.FC<UserProfileMenuProps> = ({
       <div className="px-4 py-2 space-y-0.5 border-t border-black/5 text-xs font-medium">
         <button
           onClick={() => { onNavigate('issues'); onClose(); }}
-          className="w-full flex items-center justify-between p-2 rounded-xl hover:bg-black/5 text-charcoal text-left"
+          className="w-full flex items-center justify-between p-2 rounded-xl hover:bg-black/5 text-charcoal text-left cursor-pointer"
         >
           <span>Campus Issues &amp; Maintenance</span>
-          <span className="text-charcoal-muted font-mono text-[10px]">Tickets</span>
+          <span className="text-charcoal-muted font-mono text-[10px]">
+            {currentUser.role === 'student' ? 'My Tickets' : 'Operations'}
+          </span>
         </button>
 
         <button
           onClick={() => { onNavigate('marketplace'); onClose(); }}
-          className="w-full flex items-center justify-between p-2 rounded-xl hover:bg-black/5 text-charcoal text-left"
+          className="w-full flex items-center justify-between p-2 rounded-xl hover:bg-black/5 text-charcoal text-left cursor-pointer"
         >
           <span>Marketplace</span>
           <span className="text-charcoal-muted font-mono text-[10px]">Listings</span>
@@ -132,7 +123,7 @@ export const UserProfileMenu: React.FC<UserProfileMenuProps> = ({
 
         <button
           onClick={() => { onNavigate('lostfound'); onClose(); }}
-          className="w-full flex items-center justify-between p-2 rounded-xl hover:bg-black/5 text-charcoal text-left"
+          className="w-full flex items-center justify-between p-2 rounded-xl hover:bg-black/5 text-charcoal text-left cursor-pointer"
         >
           <span>Lost &amp; Found</span>
           <span className="text-charcoal-muted font-mono text-[10px]">Claims</span>
