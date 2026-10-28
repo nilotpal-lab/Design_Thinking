@@ -11,9 +11,10 @@ export default {
         card: '#FFFFFF',
         'subtle-border': '#EBE6DF',
         forest: {
-          DEFAULT: '#1E4D38',
-          dark: '#143527',
-          light: '#2D6A4F',
+          DEFAULT: '#155137', // Exact search button & active pill color from image
+          spot: '#3D775F',    // Exact "SPOT." green from image
+          dark: '#0E3E2A',
+          light: '#427A62',
           tint: '#E8F5E9',
         },
         charcoal: {
