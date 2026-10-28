@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   ArrowRight, 
   Search, 
@@ -20,6 +20,51 @@ interface HomePageProps {
 export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCalendarDay, setSelectedCalendarDay] = useState<number>(12);
+
+  // Typewriter effect phrases
+  const phrases = useMemo(() => [
+    'Search spaces, events, faculty, etc...',
+    'Search for free classrooms on Floor 2...',
+    'Find Dr. Priya Sharma in Computer Science...',
+    'Search upcoming tech fests & workshops...',
+    'Search textbooks, gadgets on marketplace...',
+    'Look for lost ID cards, keys, wallets...'
+  ], []);
+
+  const [placeholderText, setPlaceholderText] = useState('');
+  const [phraseIndex, setPhraseIndex] = useState(0);
+  const [charIndex, setCharIndex] = useState(0);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  useEffect(() => {
+    const currentPhrase = phrases[phraseIndex];
+    let timer: any;
+
+    if (!isDeleting) {
+      if (charIndex < currentPhrase.length) {
+        timer = setTimeout(() => {
+          setPlaceholderText(currentPhrase.substring(0, charIndex + 1));
+          setCharIndex(prev => prev + 1);
+        }, 55);
+      } else {
+        timer = setTimeout(() => {
+          setIsDeleting(true);
+        }, 2000);
+      }
+    } else {
+      if (charIndex > 0) {
+        timer = setTimeout(() => {
+          setPlaceholderText(currentPhrase.substring(0, charIndex - 1));
+          setCharIndex(prev => prev - 1);
+        }, 28);
+      } else {
+        setIsDeleting(false);
+        setPhraseIndex(prev => (prev + 1) % phrases.length);
+      }
+    }
+
+    return () => clearTimeout(timer);
+  }, [charIndex, isDeleting, phraseIndex, phrases]);
 
   const quickCards = [
     { id: 'spaces', title: 'Find Spaces', icon: Armchair, bg: 'bg-[#E8EFE9]' },
@@ -130,7 +175,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
             <Search className="w-5 h-5 text-charcoal-muted ml-3 mr-3" />
             <input
               type="text"
-              placeholder="Search spaces, events, faculty, etc..."
+              placeholder={placeholderText || 'Search spaces, events, faculty, etc...'}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyDown={(e) => {
