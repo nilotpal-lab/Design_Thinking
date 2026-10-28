@@ -1,5 +1,5 @@
 import React from 'react';
-import { User, Shield, Wrench, CheckCircle, ExternalLink, LogOut, X, Sparkles } from 'lucide-react';
+import { User, Shield, Wrench, ExternalLink, LogOut, X, Sparkles } from 'lucide-react';
 
 interface UserProfileMenuProps {
   isOpen: boolean;
@@ -106,15 +106,6 @@ export const UserProfileMenu: React.FC<UserProfileMenuProps> = ({
           <span>My Lost &amp; Found Reports</span>
           <span className="text-charcoal-muted font-mono text-[11px]">2 items</span>
         </button>
-      </div>
-
-      {/* Cloud & Database status indicator */}
-      <div className="p-3 bg-[#FAF8F5] border-t border-black/5 flex items-center justify-between text-[11px] text-charcoal-muted">
-        <div className="flex items-center gap-1.5 text-[#137333]">
-          <CheckCircle className="w-3.5 h-3.5" />
-          <span className="font-medium">Supabase Connected</span>
-        </div>
-        <span className="font-mono text-[10px]">63 Rooms Synced</span>
       </div>
     </div>
   );
