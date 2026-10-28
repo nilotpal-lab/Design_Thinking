@@ -81,7 +81,7 @@ export const App: React.FC = () => {
         {activeTab === 'home' && <HomePage onNavigate={(tab) => setActiveTab(tab)} />}
         {activeTab === 'spaces' && <SpacesPage />}
         {activeTab === 'calendar' && <CalendarPage />}
-        {activeTab === 'faculty' && <FacultyPage />}
+        {activeTab === 'faculty' && <FacultyPage currentUser={currentUser} />}
         {activeTab === 'issues' && (
           <IssuesPage 
             currentUser={currentUser} 

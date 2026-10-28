@@ -92,26 +92,26 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
 
     return {
       rooms: rooms.filter(r => 
-        r.room_code.toLowerCase().includes(q) || 
-        r.display_name.toLowerCase().includes(q) ||
-        r.room_type.toLowerCase().includes(q)
+        (r.room_code && r.room_code.toLowerCase().includes(q)) || 
+        (r.display_name && r.display_name.toLowerCase().includes(q)) ||
+        (r.room_type && r.room_type.toLowerCase().includes(q))
       ).slice(0, 4),
       events: events.filter(e => 
-        e.title.toLowerCase().includes(q) || 
+        (e.title && e.title.toLowerCase().includes(q)) || 
         (e.venue_text && e.venue_text.toLowerCase().includes(q))
       ).slice(0, 3),
       faculty: faculty.filter(f => 
-        f.name.toLowerCase().includes(q) || 
-        f.department.toLowerCase().includes(q) ||
-        f.cabin_location.toLowerCase().includes(q)
+        (f.name && f.name.toLowerCase().includes(q)) || 
+        (f.department && f.department.toLowerCase().includes(q)) ||
+        (f.cabin_location && f.cabin_location.toLowerCase().includes(q))
       ).slice(0, 3),
       marketplace: marketplace.filter(m => 
-        m.title.toLowerCase().includes(q) || 
-        m.category.toLowerCase().includes(q)
+        (m.title && m.title.toLowerCase().includes(q)) || 
+        (m.category && m.category.toLowerCase().includes(q))
       ).slice(0, 3),
       lostFound: lostFound.filter(lf => 
-        lf.title.toLowerCase().includes(q) || 
-        lf.location_text.toLowerCase().includes(q)
+        (lf.title && lf.title.toLowerCase().includes(q)) || 
+        (lf.location_text && lf.location_text.toLowerCase().includes(q))
       ).slice(0, 3),
     };
   }, [query, rooms, events, faculty, marketplace, lostFound]);
@@ -126,8 +126,14 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-start justify-center pt-20 p-4">
-      <div className="bg-white rounded-3xl w-full max-w-2xl shadow-2xl border border-black/10 overflow-hidden animate-in fade-in zoom-in-95 duration-150 flex flex-col max-h-[80vh]">
+    <div 
+      className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-start justify-center pt-20 p-4"
+      onClick={onClose}
+    >
+      <div 
+        className="bg-white rounded-3xl w-full max-w-2xl shadow-2xl border border-black/10 overflow-hidden animate-in fade-in zoom-in-95 duration-150 flex flex-col max-h-[80vh]"
+        onClick={(e) => e.stopPropagation()}
+      >
         
         {/* Search Input Bar */}
         <div className="flex items-center gap-3 px-5 py-4 border-b border-black/10 bg-[#FAF8F5]">

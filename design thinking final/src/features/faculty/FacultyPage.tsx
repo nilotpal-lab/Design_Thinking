@@ -10,14 +10,39 @@ import {
   MapPin, 
   BookOpen, 
   Briefcase,
-  Building
+  Building,
+  Plus,
+  Trash2,
+  ShieldCheck,
+  Edit2
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { FacultyMember } from '../../types/database';
+import { UserSession } from '../../components/AuthModal';
 
-export const FacultyPage: React.FC = () => {
+interface FacultyPageProps {
+  currentUser?: UserSession | null;
+}
+
+export const FacultyPage: React.FC<FacultyPageProps> = ({ currentUser }) => {
   const [faculty, setFaculty] = useState<FacultyMember[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Administrative State
+  const isHeadAdmin = currentUser?.role === 'head_admin';
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
+  const [formFacultyId, setFormFacultyId] = useState<string | null>(null);
+  const [formName, setFormName] = useState('');
+  const [formDesignation, setFormDesignation] = useState('Assistant Professor');
+  const [formDepartment, setFormDepartment] = useState('Computer Science & Engineering');
+  const [formCabin, setFormCabin] = useState('');
+  const [formSubjects, setFormSubjects] = useState('');
+  const [formEmail, setFormEmail] = useState('');
+  const [formPhone, setFormPhone] = useState('');
+  const [formPhotoUrl, setFormPhotoUrl] = useState('');
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [actionSuccess, setActionSuccess] = useState<string | null>(null);
 
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
@@ -29,20 +54,117 @@ export const FacultyPage: React.FC = () => {
   // Selected faculty member for right detail inspector
   const [selectedFacultyId, setSelectedFacultyId] = useState<string | null>(null);
 
-  useEffect(() => {
-    async function loadFaculty() {
-      setLoading(true);
-      const { data, error } = await supabase.from('faculty').select('*').order('name', { ascending: true });
-      if (!error && data) {
-        setFaculty(data as FacultyMember[]);
-        if (data.length > 0) {
-          setSelectedFacultyId(data[0].id);
-        }
+  const loadFaculty = async () => {
+    setLoading(true);
+    const { data, error } = await supabase.from('faculty').select('*').order('name', { ascending: true });
+    if (!error && data) {
+      setFaculty(data as FacultyMember[]);
+      if (data.length > 0 && !selectedFacultyId) {
+        setSelectedFacultyId(data[0].id);
       }
-      setLoading(false);
     }
+    setLoading(false);
+  };
+
+  useEffect(() => {
     loadFaculty();
   }, []);
+
+  const openCreateModal = () => {
+    setModalMode('create');
+    setFormFacultyId(null);
+    setFormName('');
+    setFormDesignation('Assistant Professor');
+    setFormDepartment('Computer Science & Engineering');
+    setFormCabin('');
+    setFormSubjects('');
+    setFormEmail('');
+    setFormPhone('');
+    setFormPhotoUrl('');
+    setActionError(null);
+    setIsModalOpen(true);
+  };
+
+  const openEditModal = (member: FacultyMember) => {
+    setModalMode('edit');
+    setFormFacultyId(member.id);
+    setFormName(member.name);
+    setFormDesignation(member.designation);
+    setFormDepartment(member.department);
+    setFormCabin(member.cabin_location);
+    setFormSubjects((member.subjects || []).join(', '));
+    setFormEmail(member.email || '');
+    setFormPhone(member.phone || '');
+    setFormPhotoUrl(member.photo_url || '');
+    setActionError(null);
+    setIsModalOpen(true);
+  };
+
+  const handleSaveFaculty = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formName.trim() || !formCabin.trim()) {
+      setActionError('Name and Cabin Location are required.');
+      return;
+    }
+
+    const subjectsArray = formSubjects
+      .split(',')
+      .map(s => s.trim())
+      .filter(Boolean);
+
+    const payload = {
+      name: formName.trim(),
+      designation: formDesignation,
+      department: formDepartment,
+      cabin_location: formCabin.trim(),
+      subjects: subjectsArray.length > 0 ? subjectsArray : ['General Studies'],
+      email: formEmail.trim() || null,
+      phone: formPhone.trim() || null,
+      photo_url: formPhotoUrl.trim() || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
+    };
+
+    try {
+      if (modalMode === 'create') {
+        const { data, error } = await supabase.from('faculty').insert([payload]).select();
+        if (error) throw error;
+        setActionSuccess('Faculty member added successfully!');
+        if (data && data[0]) {
+          setFaculty(prev => [data[0] as FacultyMember, ...prev]);
+          setSelectedFacultyId(data[0].id);
+        }
+      } else if (modalMode === 'edit' && formFacultyId) {
+        const { error } = await supabase.from('faculty').update(payload).eq('id', formFacultyId);
+        if (error) throw error;
+        setActionSuccess('Faculty member updated successfully!');
+        setFaculty(prev => prev.map(f => f.id === formFacultyId ? { ...f, ...payload } as FacultyMember : f));
+      }
+      setIsModalOpen(false);
+      setTimeout(() => setActionSuccess(null), 3500);
+    } catch (err: any) {
+      console.error('Faculty save error:', err);
+      setActionError(err.message || 'Failed to save faculty record.');
+    }
+  };
+
+  const handleDeleteFaculty = async (id: string, name: string) => {
+    if (!window.confirm(`Are you sure you want to remove ${name} from the University Faculty directory?`)) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase.from('faculty').delete().eq('id', id);
+      if (error) throw error;
+      setFaculty(prev => prev.filter(f => f.id !== id));
+      if (selectedFacultyId === id) {
+        setSelectedFacultyId(null);
+      }
+      setActionSuccess(`Faculty member ${name} removed from directory.`);
+      setTimeout(() => setActionSuccess(null), 3500);
+    } catch (err: any) {
+      console.error('Faculty delete error:', err);
+      setActionError(err.message || 'Failed to delete faculty record.');
+    }
+  };
 
   // Collect unique departments and subjects
   const departments = useMemo(() => {
@@ -152,12 +274,41 @@ export const FacultyPage: React.FC = () => {
               OUR <span className="text-[#3D775F]">FACULTY.</span>
             </h1>
           </div>
-          <div className="text-right">
-            <span className="text-xs font-bold tracking-widest text-charcoal-muted uppercase">
-              LEARN. CONNECT. GROW.
-            </span>
+          <div className="flex flex-col sm:flex-row items-end sm:items-center gap-3">
+            {isHeadAdmin && (
+              <button
+                onClick={openCreateModal}
+                className="inline-flex items-center gap-2 bg-[#155137] hover:bg-[#0E3E2A] text-white px-4 py-2.5 rounded-xl font-bold text-xs shadow-sm transition-all cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Add Faculty Member</span>
+              </button>
+            )}
+            <div className="text-right">
+              <span className="text-xs font-bold tracking-widest text-charcoal-muted uppercase">
+                LEARN. CONNECT. GROW.
+              </span>
+            </div>
           </div>
         </div>
+
+        {/* Status notification toast */}
+        {actionSuccess && (
+          <div className="bg-[#EAF5EE] border border-[#137333]/20 text-[#137333] px-4 py-2.5 rounded-xl text-xs font-semibold flex items-center justify-between animate-in fade-in">
+            <span>{actionSuccess}</span>
+            <button onClick={() => setActionSuccess(null)} className="p-1 hover:bg-[#137333]/10 rounded-full">
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
+        {actionError && (
+          <div className="bg-[#FCE8E6] border border-[#C5221F]/20 text-[#C5221F] px-4 py-2.5 rounded-xl text-xs font-semibold flex items-center justify-between animate-in fade-in">
+            <span>{actionError}</span>
+            <button onClick={() => setActionError(null)} className="p-1 hover:bg-[#C5221F]/10 rounded-full">
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
 
         {/* Search Bar matching screenshot */}
         <div className="flex items-center bg-card rounded-2xl border border-subtle-border p-2 shadow-sm focus-within:ring-2 focus-within:ring-[#155137]/20 focus-within:border-[#155137] transition-all">
@@ -437,6 +588,32 @@ export const FacultyPage: React.FC = () => {
                   )}
                 </div>
               )}
+
+              {/* Head Admin Governance Action Controls */}
+              {isHeadAdmin && (
+                <div className="pt-3 border-t border-subtle-border space-y-2">
+                  <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-purple-700">
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                    <span>Head Admin Clearance</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => openEditModal(selectedFaculty)}
+                      className="flex items-center justify-center gap-1.5 py-2 px-3 bg-canvas border border-subtle-border hover:border-charcoal-muted rounded-xl text-xs font-bold text-charcoal transition-colors cursor-pointer"
+                    >
+                      <Edit2 className="w-3.5 h-3.5" />
+                      <span>Edit Info</span>
+                    </button>
+                    <button
+                      onClick={() => handleDeleteFaculty(selectedFaculty.id, selectedFaculty.name)}
+                      className="flex items-center justify-center gap-1.5 py-2 px-3 bg-red-50 border border-red-200 hover:bg-red-100 rounded-xl text-xs font-bold text-red-700 transition-colors cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Remove</span>
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             <div className="bg-card rounded-2xl border border-subtle-border p-8 text-center text-xs text-charcoal-muted">
@@ -445,6 +622,174 @@ export const FacultyPage: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Head Admin Modal: Add / Edit Faculty */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-black/10 space-y-5 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-start justify-between">
+              <div>
+                <div className="flex items-center gap-1.5 mb-1 text-[11px] font-bold uppercase tracking-wider text-purple-700">
+                  <ShieldCheck className="w-4 h-4" />
+                  <span>Executive Governance Console</span>
+                </div>
+                <h3 className="font-bold text-xl text-charcoal">
+                  {modalMode === 'create' ? 'Onboard New Faculty' : 'Update Faculty Record'}
+                </h3>
+                <p className="text-xs text-charcoal-muted mt-0.5">
+                  Changes update the live university directory immediately.
+                </p>
+              </div>
+              <button
+                onClick={() => setIsModalOpen(false)}
+                className="p-1.5 rounded-full hover:bg-black/5 text-charcoal-muted cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {actionError && (
+              <div className="bg-[#FCE8E6] border border-[#C5221F]/20 text-[#C5221F] p-3 rounded-xl text-xs font-semibold">
+                {actionError}
+              </div>
+            )}
+
+            <form onSubmit={handleSaveFaculty} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-charcoal mb-1">
+                  Full Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Dr. Ramesh Rao"
+                  value={formName}
+                  onChange={(e) => setFormName(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-[#FAF8F5] border border-black/10 rounded-xl text-xs focus:outline-none focus:border-forest"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-charcoal mb-1">
+                    Designation *
+                  </label>
+                  <select
+                    value={formDesignation}
+                    onChange={(e) => setFormDesignation(e.target.value)}
+                    className="w-full px-3 py-2.5 bg-[#FAF8F5] border border-black/10 rounded-xl text-xs focus:outline-none focus:border-forest"
+                  >
+                    <option value="Professor">Professor</option>
+                    <option value="Associate Professor">Associate Professor</option>
+                    <option value="Assistant Professor">Assistant Professor</option>
+                    <option value="Guest Faculty">Guest Faculty</option>
+                    <option value="Head of Department">Head of Department</option>
+                    <option value="Dean">Dean</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-charcoal mb-1">
+                    Cabin Location *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Block A, Cabin 304"
+                    value={formCabin}
+                    onChange={(e) => setFormCabin(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-[#FAF8F5] border border-black/10 rounded-xl text-xs focus:outline-none focus:border-forest"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-charcoal mb-1">
+                  Department *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Computer Science & Engineering"
+                  value={formDepartment}
+                  onChange={(e) => setFormDepartment(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-[#FAF8F5] border border-black/10 rounded-xl text-xs focus:outline-none focus:border-forest"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-charcoal mb-1">
+                  Subjects Taught (comma separated)
+                </label>
+                <input
+                  type="text"
+                  placeholder="Data Structures, Design Thinking, Algorithms"
+                  value={formSubjects}
+                  onChange={(e) => setFormSubjects(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-[#FAF8F5] border border-black/10 rounded-xl text-xs focus:outline-none focus:border-forest"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-charcoal mb-1">
+                    Email Address
+                  </label>
+                  <input
+                    type="email"
+                    placeholder="faculty@jainuniversity.ac.in"
+                    value={formEmail}
+                    onChange={(e) => setFormEmail(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-[#FAF8F5] border border-black/10 rounded-xl text-xs focus:outline-none focus:border-forest"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-charcoal mb-1">
+                    Office Phone
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="+91 98765 43210"
+                    value={formPhone}
+                    onChange={(e) => setFormPhone(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-[#FAF8F5] border border-black/10 rounded-xl text-xs focus:outline-none focus:border-forest"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-charcoal mb-1">
+                  Photo URL
+                </label>
+                <input
+                  type="url"
+                  placeholder="https://..."
+                  value={formPhotoUrl}
+                  onChange={(e) => setFormPhotoUrl(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-[#FAF8F5] border border-black/10 rounded-xl text-xs focus:outline-none focus:border-forest"
+                />
+              </div>
+
+              <div className="flex items-center gap-3 pt-3">
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  className="flex-1 py-2.5 rounded-xl border border-black/15 font-bold text-xs text-charcoal hover:bg-black/5 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-2.5 rounded-xl bg-[#155137] hover:bg-[#0E3E2A] text-white font-bold text-xs shadow-sm transition-all cursor-pointer"
+                >
+                  {modalMode === 'create' ? 'Save & Publish' : 'Update Record'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

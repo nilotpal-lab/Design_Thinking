@@ -138,14 +138,13 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
     },
   ];
 
-  // November 2026 days layout
+  // Accurate November 2026 calendar days layout (Nov 1 is Sunday)
   const calendarGrid = [
-    [1, 2, 4, 5, 7, 1, 2],
-    [2, 3, 4, 5, 7, 8, 8],
-    [9, 10, 11, 12, 13, 14, 15],
-    [16, 17, 18, 19, 20, 22, 22],
-    [23, 24, 25, 26, 27, 28, 29],
-    [39, 31, null, null, null, null, null],
+    [1, 2, 3, 4, 5, 6, 7],
+    [8, 9, 10, 11, 12, 13, 14],
+    [15, 16, 17, 18, 19, 20, 21],
+    [22, 23, 24, 25, 26, 27, 28],
+    [29, 30, null, null, null, null, null],
   ];
 
   return (
@@ -314,13 +313,21 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
             <div className="p-4 md:w-[54%] flex flex-col justify-between">
               {/* Month Navigator Header */}
               <div className="flex items-center justify-between mb-3 px-1">
-                <button className="text-charcoal hover:text-[#155137] transition-colors">
+                <button 
+                  onClick={() => onNavigate('calendar')}
+                  className="text-charcoal hover:text-[#155137] transition-colors cursor-pointer p-1"
+                  title="Previous month"
+                >
                   <ChevronLeft className="w-4 h-4" />
                 </button>
                 <span className="font-bold text-xs text-charcoal">
                   November 2026
                 </span>
-                <button className="text-charcoal hover:text-[#155137] transition-colors">
+                <button 
+                  onClick={() => onNavigate('calendar')}
+                  className="text-charcoal hover:text-[#155137] transition-colors cursor-pointer p-1"
+                  title="Next month"
+                >
                   <ChevronRight className="w-4 h-4" />
                 </button>
               </div>

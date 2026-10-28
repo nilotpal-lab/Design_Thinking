@@ -14,12 +14,14 @@ interface NotificationsPopoverProps {
   isOpen: boolean;
   onClose: () => void;
   onNavigate: (tab: string) => void;
+  onUnreadChange?: (hasUnread: boolean) => void;
 }
 
 export const NotificationsPopover: React.FC<NotificationsPopoverProps> = ({
   isOpen,
   onClose,
   onNavigate,
+  onUnreadChange,
 }) => {
   const [notifications, setNotifications] = useState<NotificationItem[]>([
     {
@@ -60,10 +62,12 @@ export const NotificationsPopover: React.FC<NotificationsPopoverProps> = ({
 
   const markAllRead = () => {
     setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+    onUnreadChange?.(false);
   };
 
   const clearAll = () => {
     setNotifications([]);
+    onUnreadChange?.(false);
   };
 
   const unreadCount = notifications.filter(n => !n.isRead).length;

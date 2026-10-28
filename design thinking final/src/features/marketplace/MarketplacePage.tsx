@@ -208,6 +208,17 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({ currentUser, o
 
   // Mark item as sold
   const handleMarkAsSold = async (id: string) => {
+    const itemToMark = items.find(i => i.id === id);
+    if (!itemToMark) return;
+
+    // Check authorization: Must be owner or Head Admin
+    const isOwner = currentUser && (itemToMark.seller_id === currentUser.id);
+    const isHeadAdmin = currentUser?.role === 'head_admin';
+    if (!isOwner && !isHeadAdmin) {
+      alert('You can only mark your own listings as sold.');
+      return;
+    }
+
     const { error } = await supabase
       .from('marketplace_items')
       .update({ status: 'sold' })
@@ -218,6 +229,39 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({ currentUser, o
       if (selectedItem && selectedItem.id === id) {
         setSelectedItem(prev => prev ? { ...prev, status: 'sold' } : null);
       }
+    }
+  };
+
+  // Admin moderation: Delete or remove inappropriate listing
+  const handleDeleteListing = async (id: string, title: string) => {
+    const itemToDelete = items.find(i => i.id === id);
+    const isOwner = currentUser && (itemToDelete?.seller_id === currentUser.id);
+    const isHeadAdmin = currentUser?.role === 'head_admin';
+
+    if (!isOwner && !isHeadAdmin) {
+      alert('Only the owner or Head Administrator can remove this listing.');
+      return;
+    }
+
+    if (!window.confirm(`Are you sure you want to permanently remove "${title}" from the marketplace?`)) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('marketplace_items')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      setItems(prev => prev.filter(i => i.id !== id));
+      if (selectedItem?.id === id) {
+        setSelectedItem(null);
+      }
+    } catch (err: any) {
+      console.error('Delete listing error:', err);
+      alert(err.message || 'Failed to remove listing.');
     }
   };
 
@@ -235,17 +279,26 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({ currentUser, o
       setIsSubmittingPost(true);
       setPostError(null);
 
+      const parsedPrice = parseFloat(newPrice);
+      if (isNaN(parsedPrice) || parsedPrice <= 0) {
+        setPostError('Please enter a valid positive price greater than ₹0.');
+        setIsSubmittingPost(false);
+        return;
+      }
+
       const newItem = {
         title: newTitle.trim(),
         category: newCategory,
-        price: parseFloat(newPrice),
+        price: parsedPrice,
         condition: newCondition,
         meeting_location: newLocation,
         description: newDescription.trim() || 'No description provided.',
-        photo_urls: [newPhotoUrl],
+        photo_urls: [newPhotoUrl || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=600&q=80'],
         status: 'available',
         views_count: 1,
         seller_id: currentUser.id,
+        seller_name: currentUser.name,
+        seller_phone: currentUser.department || 'Student Seller',
       };
 
       const { data, error } = await supabase
@@ -850,6 +903,31 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({ currentUser, o
                     <p className="text-[11px] text-charcoal-muted/80 leading-relaxed italic border-t border-black/5 pt-3">
                       Your phone number will be shared with the seller. You can then discuss directly about the item.
                     </p>
+
+                    {/* Owner or Admin Moderation Controls */}
+                    {(currentUser?.role === 'head_admin' || (currentUser && selectedItem.seller_id === currentUser.id)) && (
+                      <div className="pt-3 border-t border-black/10 space-y-2">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-charcoal-muted block">
+                          {currentUser?.role === 'head_admin' ? 'Head Admin Moderation' : 'Your Listing Controls'}
+                        </span>
+                        <div className="flex flex-col gap-2">
+                          {selectedItem.status !== 'sold' && (
+                            <button
+                              onClick={() => handleMarkAsSold(selectedItem.id)}
+                              className="w-full py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-bold text-xs transition-colors cursor-pointer"
+                            >
+                              Mark as Sold
+                            </button>
+                          )}
+                          <button
+                            onClick={() => handleDeleteListing(selectedItem.id, selectedItem.title)}
+                            className="w-full py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold text-xs transition-colors cursor-pointer"
+                          >
+                            {currentUser?.role === 'head_admin' ? 'Remove Listing (Admin Delete)' : 'Delete Listing'}
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 

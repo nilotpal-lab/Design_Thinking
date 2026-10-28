@@ -852,19 +852,59 @@ export const LostFoundPage: React.FC<LostFoundPageProps> = ({ currentUser, onReq
                 </div>
 
                 <button
-                  onClick={() => {
+                  onClick={async () => {
                     if (!currentUser) {
                       if (onRequireAuth) onRequireAuth();
                       else alert('Please sign in to claim this item.');
                       return;
                     }
-                    setClaimSubmitted(true);
+                    try {
+                      // Persist claim in Supabase by setting status to claimed and updating notes
+                      await supabase.from('lost_found_items').update({ 
+                        status: 'claimed',
+                        description: `${selectedItem.description}\n[Claim Submitted by ${currentUser.name} (${currentUser.department})]: ${claimProof.trim()}`
+                      }).eq('id', selectedItem.id);
+
+                      setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, status: 'claimed' } : i));
+                      setClaimSubmitted(true);
+                    } catch (err) {
+                      console.error('Claim persistence error:', err);
+                      setClaimSubmitted(true);
+                    }
                   }}
                   disabled={!claimProof.trim()}
                   className="w-full py-3 rounded-xl bg-[#155137] hover:bg-[#103E2A] disabled:opacity-50 text-white font-semibold text-xs shadow-sm transition-all cursor-pointer"
                 >
                   {selectedItem.report_type === 'found' ? 'Claim This Item (I am the owner)' : 'I Found This Item (Coordinate Return)'}
                 </button>
+                {/* Head Admin or Owner Delete/Resolve Actions */}
+                {(currentUser?.role === 'head_admin' || (currentUser && selectedItem.reporter_id === currentUser.id)) && (
+                  <div className="pt-2 border-t border-black/10 flex gap-2">
+                    {selectedItem.status !== 'resolved' && (
+                      <button
+                        onClick={async () => {
+                          await supabase.from('lost_found_items').update({ status: 'resolved' }).eq('id', selectedItem.id);
+                          setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, status: 'resolved' } : i));
+                          setSelectedItem(null);
+                        }}
+                        className="flex-1 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs transition-colors cursor-pointer"
+                      >
+                        Mark Reunited
+                      </button>
+                    )}
+                    <button
+                      onClick={async () => {
+                        if (!window.confirm(`Permanently remove report for "${selectedItem.title}"?`)) return;
+                        await supabase.from('lost_found_items').delete().eq('id', selectedItem.id);
+                        setItems(prev => prev.filter(i => i.id !== selectedItem.id));
+                        setSelectedItem(null);
+                      }}
+                      className="flex-1 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs transition-colors cursor-pointer"
+                    >
+                      Delete Report
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 

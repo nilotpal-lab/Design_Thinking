@@ -24,6 +24,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [hasUnreadNotifs, setHasUnreadNotifs] = useState(true);
 
   const navItems = [
     { id: 'home', label: 'Home' },
@@ -127,7 +128,9 @@ export const Navbar: React.FC<NavbarProps> = ({
               aria-label="Notifications"
             >
               <Bell className="w-4 h-4" />
-              <span className="w-2 h-2 rounded-full bg-red-500 absolute top-2.5 right-2.5 ring-2 ring-white" />
+              {hasUnreadNotifs && (
+                <span className="w-2 h-2 rounded-full bg-red-500 absolute top-2.5 right-2.5 ring-2 ring-white" />
+              )}
             </button>
 
             <NotificationsPopover 
@@ -137,6 +140,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 setActiveTab(tab);
                 setIsNotifOpen(false);
               }}
+              onUnreadChange={(hasUnread) => setHasUnreadNotifs(hasUnread)}
             />
           </div>
 

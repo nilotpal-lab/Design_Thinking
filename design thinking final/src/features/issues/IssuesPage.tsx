@@ -143,7 +143,9 @@ export const IssuesPage: React.FC<IssuesPageProps> = ({ currentUser, onRequireAu
       setSubmitting(true);
       setSubmitError(null);
 
-      const newTicketNum = `#0${240 + issues.length + 1}`;
+      // Generate clean unique ticket number using timestamp suffix to prevent concurrency collisions
+      const randomSuffix = Math.floor(100 + Math.random() * 900);
+      const newTicketNum = `#T-${Date.now().toString().slice(-4)}${randomSuffix}`;
       const newIssue = {
         ticket_number: newTicketNum,
         title: newTitle.trim(),
@@ -152,7 +154,7 @@ export const IssuesPage: React.FC<IssuesPageProps> = ({ currentUser, onRequireAu
         location_text: newLocation,
         status: 'registered',
         photo_urls: ['https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=600&q=80'],
-        reported_by: currentUser.id,
+        reported_by: currentUser.name || currentUser.id,
       };
 
       const { data, error } = await supabase.from('issues').insert([newIssue]).select();
@@ -188,10 +190,15 @@ export const IssuesPage: React.FC<IssuesPageProps> = ({ currentUser, onRequireAu
   // Filtered Issues for Normal User
   const userFilteredIssues = useMemo(() => {
     return issues.filter((it) => {
+      // If user is a student, only show their own reported issues
+      if (currentUser && !isAdmin) {
+        const isMine = it.reported_by === currentUser.name || it.reported_by === currentUser.id;
+        if (!isMine) return false;
+      }
       if (userStatusFilter !== 'all' && it.status !== userStatusFilter) return false;
       return true;
     });
-  }, [issues, userStatusFilter]);
+  }, [issues, userStatusFilter, currentUser, isAdmin]);
 
   // Filtered Issues for Admin
   const adminFilteredIssues = useMemo(() => {
@@ -872,11 +879,20 @@ export const IssuesPage: React.FC<IssuesPageProps> = ({ currentUser, onRequireAu
                 <div className="flex space-x-2 pt-2 border-t border-subtle-border">
                   <button
                     onClick={() => handleUpdateStatus(selectedIssue.id, selectedIssue.status === 'resolved' ? 'in_progress' : 'resolved')}
-                    className="flex-1 py-2 bg-[#155137] hover:bg-[#0E3E2A] text-white rounded-xl font-bold text-xs transition-colors"
+                    className="flex-1 py-2 bg-[#155137] hover:bg-[#0E3E2A] text-white rounded-xl font-bold text-xs transition-colors cursor-pointer"
                   >
                     {selectedIssue.status === 'resolved' ? 'Reopen Issue' : 'Mark Resolved'}
                   </button>
-                  <button className="px-3 py-2 border border-subtle-border text-charcoal rounded-xl font-bold text-xs hover:bg-canvas">
+                  <button 
+                    onClick={() => {
+                      const newAssignee = prompt('Assign to maintenance staff name or team:', selectedIssue.assigned_to || 'Facilities Team');
+                      if (newAssignee) {
+                        supabase.from('issues').update({ assigned_to: newAssignee, status: 'in_progress' }).eq('id', selectedIssue.id);
+                        setIssues(prev => prev.map(i => i.id === selectedIssue.id ? { ...i, assigned_to: newAssignee, status: 'in_progress' } : i));
+                      }
+                    }}
+                    className="px-3 py-2 border border-subtle-border text-charcoal rounded-xl font-bold text-xs hover:bg-canvas transition-colors cursor-pointer"
+                  >
                     Reassign
                   </button>
                 </div>
